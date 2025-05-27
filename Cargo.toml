@@ -1,0 +1,19 @@
+[package]
+name = "tectonic_sim"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bevy = "0.13"
+bevy_egui = "0.25"
+bevy_panorbit_camera = "0.18.0"
+
+geo = { version = "0.30.0" }
+spade = "2.13.1"
+rand = "0.9.1"
+serde = { version = "1.0", features = ["derive"] }
+nalgebra = { version = "0.33.2", features = ["serde-serialize"] }
+
+svg = "0.16"
+[dev-dependencies]
+approx = "0.5"
