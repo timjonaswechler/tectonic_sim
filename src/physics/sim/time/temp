@@ -1,0 +1,226 @@
+pub fn simulation_driver_system(
+    mut sim_params: ResMut<SimulationParameters>,
+    mut history: ResMut<TickHistory>,
+    mut commands: Commands,
+    mut gizmos: Gizmos,
+    // Query für Simulationsentitäten
+) {
+    if sim_params.execute_step_backward_request {
+        if let Some(current_idx) = history.current_display_snapshot_index {
+            if current_idx > 0 {
+                let prev_idx = current_idx - 1;
+                // Extract data from snapshot to drop the immutable borrow of `history`
+                // before attempting a mutable borrow later.
+                let snapshot_data = history
+                    .get_snapshot_by_index(prev_idx)
+                    .map(|s| (s.time_ma, s.dummy_value));
+
+                if let Some((snapshot_time, snapshot_dummy)) = snapshot_data {
+                    sim_params.display_time_ma = snapshot_time;
+                    history.current_display_snapshot_index = Some(prev_idx);
+                    // TODO: WELTZUSTAND AUF DATEN DES VORHERIGEN SNAPSHOTS LADEN (verwende snapshot_time, snapshot_dummy)
+                    info!(
+                        "Stepped backward. Displaying snapshot at: {:.3} Ma. Dummy: {:.2}",
+                        snapshot_time, snapshot_dummy
+                    );
+                    sim_params.paused = true; // Nach einem Schritt zurück immer pausieren
+                }
+            }
+        }
+        sim_params.execute_step_backward_request = false; // Anfrage verarbeitet
+        return; // Keine weitere Aktion in diesem Frame für Step Backward
+    }
+
+    // Bestimme, ob ein Vorwärts-Schritt ausgeführt werden soll
+    let should_execute_forward_step = sim_params.execute_single_step_request || !sim_params.paused;
+
+    if should_execute_forward_step {
+        sim_params.execute_single_step_request = false; // Anfrage verarbeitet, falls es ein Single-Step war
+
+        let at_simulation_frontier = history
+            .current_display_snapshot_index
+            .map_or(true, |idx| idx == history.len() - 1);
+
+        if at_simulation_frontier {
+            // --- NEUEN SIMULATIONSSCHRITT AUSFÜHREN ---
+            //TODO: Hier die Logik für den neuen Simulationsschritt einfügen
+            sim_params.advanced_simulation_time_ma += sim_params.time_step_ma;
+            sim_params.display_time_ma = sim_params.advanced_simulation_time_ma;
+
+            let new_dummy_value = (sim_params.advanced_simulation_time_ma * 10.0 % 100.0) as f32;
+            info!(
+                "Simulating new step. Time: {:.3} Ma. Dummy: {:.2}",
+                sim_params.advanced_simulation_time_ma, new_dummy_value
+            );
+
+            // let normalized_2d_polygon =
+            //     generate_normalized_voronoi_merged_shape(&VoronoiMergedShapeConfig {
+            //         ..Default::default()
+            //     });
+
+            // // #[cfg(debug_assertions)]
+            // // {
+            // //     info!(
+            // //         "Generated Voronoi with polygons: {:?}",
+            // //         normalized_2d_polygon.len()
+            // //     );
+            // //     if !normalized_2d_polygon.is_empty() {
+            // //         if let Err(e) = create_debug_svg_for_normalized_polygon(
+            // //             &normalized_2d_polygon,
+            // //             "debug_normalized_shape.svg",
+            // //             500.0, // Pixelgröße des SVGs
+            // //             0.05,  // 5% Padding im ViewBox
+            // //         ) {
+            // //             eprintln!("Failed to create debug SVG: {:?}", e);
+            // //         }
+            // //     }
+            // // }
+
+            // // Nur wenn ein Polygon generiert wurde, projizieren und spawnen
+            // if !normalized_2d_polygon.is_empty() {
+            //     // Wähle zufälligen Mittelpunkt auf der Kugel
+            //     let sphere_center_normalized = random_point_on_unit_sphere();
+            //     let sphere_radius = 1.0; // Wir arbeiten mit einer Einheitskugel für die Geometrie
+            //     // sim_params.planet_radius_km wäre für reale Skalierung
+
+            //     let max_angular_extent_deg = 15.0; // Gewünschte maximale Ausdehnung
+
+            //     let projected_3d_vertices = project_normalized_2d_polygon_to_sphere(
+            //         &normalized_2d_polygon,
+            //         sphere_center_normalized,
+            //         sphere_radius, // Auf Einheitskugel projizieren
+            //         max_angular_extent_deg,
+            //     );
+
+            //     if !projected_3d_vertices.is_empty() {
+            //         debug!(
+            //             "Projected 2D polygon to sphere at {:?}, {} vertices.",
+            //             sphere_center_normalized,
+            //             projected_3d_vertices.len()
+            //         );
+
+            //         // Erzeuge die `geo::Polygon<f32>` aus den originalen 2D-Punkten (f64 konvertiert zu f32)
+            //         let mut exterior_points_2d_f32: Vec<GeoPoint<f32>> = Vec::new();
+            //         for p_f64 in &normalized_2d_polygon {
+            //             exterior_points_2d_f32.push(GeoPoint::new(p_f64.x as f32, p_f64.y as f32));
+            //         }
+            //         // geo::Polygon braucht einen geschlossenen Linestring (erster und letzter Punkt gleich)
+            //         if !exterior_points_2d_f32.is_empty()
+            //             && exterior_points_2d_f32.first() != exterior_points_2d_f32.last()
+            //         {
+            //             exterior_points_2d_f32.push(exterior_points_2d_f32[0]);
+            //         }
+            //         let shape_2d_geo =
+            //             geo::Polygon::new(GeoLineString::from(exterior_points_2d_f32), vec![]);
+
+            //         // Spawne eine Craton-Entität mit diesen 3D-Vertices
+            //         let projected_3d_vertices_for_entity = projected_3d_vertices.clone();
+            //         commands.spawn(CratonComponent {
+            //             id: ((sim_params.advanced_simulation_time_ma * 100.0) as u32) % 1000, // Einfache ID
+            //             name: format!("Craton @ {:.2}Ma", sim_params.advanced_simulation_time_ma),
+            //             shape_2d: shape_2d_geo, // Das ursprüngliche 2D Polygon
+            //             center_on_sphere: sphere_center_normalized * sphere_radius, // Skaliert mit Radius
+            //             vertices_on_sphere: projected_3d_vertices_for_entity, // Die auf die Kugel projizierten Punkte
+            //         });
+
+            //         // Debug-Pfeile für die projizierten Vertices (optional)
+            //         #[cfg(debug_assertions)]
+            //         {
+            //             for (i, &vertex_3d) in projected_3d_vertices.iter().enumerate() {
+            //                 commands.spawn(NormalArrowVisual {
+            //                     origin: vertex_3d,                // vertex_3d ist bereits auf der Kugeloberfläche
+            //                     direction: vertex_3d.normalize(), // Normale ist der Punkt selbst (normalisiert)
+            //                     length: 0.05, // Kleinere Pfeile für Polygon-Ecken
+            //                     color: Color::rgba(1.0, 0.5, 0.0, 0.5), // Orange, leicht transparent
+            //                 });
+            //                 // Verbindungslinien zwischen den Vertices des Polygons
+            //                 if i > 0 {
+            //                     gizmos.line(
+            //                         projected_3d_vertices[i - 1],
+            //                         vertex_3d,
+            //                         Color::rgba(1.0, 1.0, 0.0, 0.3),
+            //                     );
+            //                 }
+            //                 if i == projected_3d_vertices.len() - 1 {
+            //                     // Schließe Polygon
+            //                     gizmos.line(
+            //                         vertex_3d,
+            //                         projected_3d_vertices[0],
+            //                         Color::rgba(1.0, 1.0, 0.0, 0.3),
+            //                     );
+            //                 }
+            //             }
+            //             // Mittelpunkt des Polygons auf der Kugel
+            //             commands.spawn(NormalArrowVisual {
+            //                 origin: sphere_center_normalized * sphere_radius,
+            //                 direction: sphere_center_normalized,
+            //                 length: 0.15,
+            //                 color: Color::WHITE,
+            //             });
+            //         }
+            //     }
+            // }
+
+            let new_snapshot = SimulationSnapshot {
+                time_ma: sim_params.advanced_simulation_time_ma,
+                dummy_value: new_dummy_value,
+            };
+            history.add_snapshot(new_snapshot);
+            // Wenn ein einzelner Schritt ausgeführt wurde (nicht im Play-Modus), pausieren wir danach
+            if !(!sim_params.paused) {
+                // d.h. es war ein single step
+                sim_params.paused = true;
+            }
+        } else if !sim_params.paused {
+            // Im "Play"-Modus und nicht am Frontier -> Historie abspielen
+            // --- DURCH HISTORIE VORWÄRTS "SPIELEN" ---
+            if let Some(current_idx) = history.current_display_snapshot_index {
+                let next_idx = current_idx + 1;
+                if next_idx < history.len() {
+                    // Extract data from snapshot to drop the immutable borrow of `history`
+                    // before attempting a mutable borrow later.
+                    let snapshot_data = history
+                        .get_snapshot_by_index(next_idx)
+                        .map(|s| (s.time_ma, s.dummy_value));
+
+                    if let Some((snapshot_time, snapshot_dummy)) = snapshot_data {
+                        sim_params.display_time_ma = snapshot_time;
+                        history.current_display_snapshot_index = Some(next_idx);
+                        // TODO: WELTZUSTAND AUF `next_snapshot` DATEN LADEN (verwende snapshot_time, snapshot_dummy)
+                        info!(
+                            "Playing history forward. Displaying snapshot at: {:.3} Ma. Dummy: {:.2}",
+                            snapshot_time, snapshot_dummy
+                        );
+                    }
+                } else {
+                    // Am Ende der Historie angekommen, aber Frontier-Check war falsch?
+                    // Sollte nicht passieren, aber zur Sicherheit pausieren.
+                    sim_params.paused = true;
+                }
+            }
+        }
+        // Wenn ein `execute_single_step_request` kam und wir NICHT am Frontier waren,
+        // dann wollen wir auch nur einen Schritt in der Historie machen und pausieren.
+        // Die obige Logik für `!sim_params.paused` deckt den "Play"-Modus ab.
+        if let Some(current_idx) = history.current_display_snapshot_index {
+            let next_idx = current_idx + 1;
+            // Extract data from snapshot to drop the immutable borrow of `history`
+            // before attempting a mutable borrow later.
+            let snapshot_data = history
+                .get_snapshot_by_index(next_idx)
+                .map(|s| (s.time_ma, s.dummy_value));
+
+            if let Some((snapshot_time, snapshot_dummy)) = snapshot_data {
+                // Store values and update state after dropping immutable borrow
+                sim_params.display_time_ma = snapshot_time;
+                history.current_display_snapshot_index = Some(next_idx);
+                // TODO: WELTZUSTAND AUF `next_snapshot` DATEN LADEN (verwende snapshot_time, snapshot_dummy)
+                info!(
+                    "Single Step through history. Displaying snapshot at: {:.3} Ma. Dummy: {:.2}",
+                    snapshot_time, snapshot_dummy
+                );
+                sim_params.paused = true; // Nach einem Step in History pausieren
+            }
+        }
+    }
+}

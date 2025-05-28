@@ -1,5 +1,5 @@
 // ./src/setup.rs
-use crate::debug::visualization::NormalArrowVisual;
+use crate::debug::visualization::normal_vector::NormalArrowVisual;
 use bevy::prelude::*;
 use bevy_panorbit_camera::PanOrbitCamera;
 

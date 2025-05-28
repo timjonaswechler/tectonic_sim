@@ -42,14 +42,14 @@ pub fn cartesian_to_latlon(point: Vec3) -> (f32, f32) {
 /// Nutzt die Methode von Marsaglia (1972) für gleichmäßige Verteilung, angepasst.
 pub fn random_point_on_unit_sphere() -> Vec3 {
     use rand::Rng;
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     // Alternativer, oft einfacher zu implementierender Algorithmus:
     // Generiere drei Normalverteilte Zufallszahlen (x,y,z) und normalisiere den Vektor (x,y,z).
     // Hier die Version mit gleichverteilten Zahlen und Zurückweisung:
     loop {
-        let x1: f32 = rng.gen_range(-1.0..=1.0);
-        let x2: f32 = rng.gen_range(-1.0..=1.0);
-        let x3: f32 = rng.gen_range(-1.0..=1.0); // Hinzugefügt für 3D Kugel
+        let x1: f32 = rng.random_range(-1.0..=1.0);
+        let x2: f32 = rng.random_range(-1.0..=1.0);
+        let x3: f32 = rng.random_range(-1.0..=1.0); // Hinzugefügt für 3D Kugel
         let r_squared = x1 * x1 + x2 * x2 + x3 * x3;
         // Punkte innerhalb einer Kugel, die nicht der Nullvektor sind
         if r_squared < 1.0 && r_squared > 1e-6 {
@@ -58,6 +58,51 @@ pub fn random_point_on_unit_sphere() -> Vec3 {
             return Vec3::new(x1 * inv_len, x2 * inv_len, x3 * inv_len);
         }
     }
+}
+
+/// Erzeugt zwei orthogonale Einheitsvektoren, die in der Tangentialebene
+/// an dem gegebenen `surface_normal` (ein normalisierter Vektor vom Kugelzentrum zum Punkt) liegen.
+///
+/// - `tangent1` ist grob "östlich" ausgerichtet (orthogonal zur globalen Y-Achse, wenn möglich).
+/// - `tangent2` ist grob "nördlich" in der Tangentialebene ausgerichtet.
+///
+/// # Arguments
+/// * `surface_normal` - Der normalisierte Vektor, der vom Kugelzentrum zum Punkt auf der Oberfläche zeigt.
+///
+/// # Returns
+/// Ein Tupel `(tangent1: Vec3, tangent2: Vec3)`.
+pub fn create_orthogonal_tangent_vectors(surface_normal: Vec3) -> (Vec3, Vec3) {
+    // Wähle einen "up_vector", der nicht kollinear mit surface_normal ist.
+    // Die globale Y-Achse ist meistens eine gute Wahl, außer wenn surface_normal selbst Y oder -Y ist.
+    let global_up = if (surface_normal.y.abs() - 1.0).abs() < 1e-6 {
+        // surface_normal ist (fast) (0,1,0) oder (0,-1,0), also Nord- oder Südpol.
+        // Wähle X-Achse als Referenz, um eine stabile Tangente zu bekommen.
+        Vec3::X
+    } else {
+        Vec3::Y
+    };
+
+    let tangent1 = global_up.cross(surface_normal).normalize();
+    // Wenn global_up und surface_normal kollinear waren, ist tangent1 (0,0,0).
+    // Dies sollte durch die obige if-Bedingung behandelt werden. Falls nicht, Fallback:
+    let tangent1 = if tangent1.length_squared() < 1e-6 {
+        // Fallback, falls die erste Wahl für global_up doch (fast) kollinear war.
+        // Passiert, wenn surface_normal z.B. (0,1,0) und global_up (0,1,0)
+        // In diesem Fall ist z.B. Vec3::X eine gute Wahl für die erste Tangente, wenn der Punkt der Nordpol ist.
+        // Die Logik oben sollte das aber abfangen. Hier eine robustere Alternative für alle Fälle:
+        let mut alt_axis = Vec3::X;
+        if surface_normal.cross(alt_axis).length_squared() < 1e-6 {
+            // Wenn surface_normal auch X ist
+            alt_axis = Vec3::Y; // Dann nimm Y
+        }
+        surface_normal.cross(alt_axis).normalize() // Erzeugt eine Tangente, die senkrecht zu surface_normal ist
+    } else {
+        tangent1
+    };
+
+    let tangent2 = surface_normal.cross(tangent1).normalize(); // tangent1 ist bereits normalisiert
+
+    (tangent1, tangent2)
 }
 
 /// Rotiert einen Vektor `point_to_rotate` um eine Achse `axis` (muss normalisiert sein)

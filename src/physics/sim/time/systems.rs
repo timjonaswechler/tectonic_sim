@@ -1,18 +1,22 @@
 use super::resources::{SimulationSnapshot, TickHistory};
+use crate::debug::visualization::normal_vector::NormalArrowVisual;
+use crate::debug::visualization::svg::create_debug_svg_for_normalized_polygon;
+use crate::math::polygon::voronoi::*;
+use crate::math::sphere::algorithms::random_point_on_unit_sphere;
+use crate::math::sphere::projection::project_normalized_2d_polygon_to_sphere;
+use crate::physics::geology::tectonic::components::CratonComponent; // Für Craton-Spawn
 use crate::physics::sim::resources::SimulationParameters; // Importiere aus dem übergeordneten Sim-Modul
 use bevy::prelude::*;
-
-// apply_simulation_parameter_changes wird nicht mehr benötigt, da der Timer wegfällt.
-// Kann entfernt werden.
+use geo::LineString as GeoLineString;
+use geo::Point as GeoPoint; // Für geo::Polygon
 
 pub fn simulation_driver_system(
-    // Entfernt: time: Res<Time>,
     mut sim_params: ResMut<SimulationParameters>,
     mut history: ResMut<TickHistory>,
+    mut commands: Commands,
+    mut gizmos: Gizmos,
     // Query für Simulationsentitäten
 ) {
-    let mut perform_action = false;
-
     if sim_params.execute_step_backward_request {
         if let Some(current_idx) = history.current_display_snapshot_index {
             if current_idx > 0 {
@@ -51,6 +55,7 @@ pub fn simulation_driver_system(
 
         if at_simulation_frontier {
             // --- NEUEN SIMULATIONSSCHRITT AUSFÜHREN ---
+            //TODO: Hier die Logik für den neuen Simulationsschritt einfügen
             sim_params.advanced_simulation_time_ma += sim_params.time_step_ma;
             sim_params.display_time_ma = sim_params.advanced_simulation_time_ma;
 
@@ -124,13 +129,9 @@ pub fn simulation_driver_system(
     }
 }
 
-// handle_timeline_interaction_system bleibt gleich wie im vorherigen Vorschlag.
-// Ich füge es hier nicht erneut ein.
-// Stelle sicher, dass es vorhanden ist und korrekt mit sim_params.display_time_ma arbeitet.
 pub fn handle_timeline_interaction_system(
     mut sim_params: ResMut<SimulationParameters>,
     mut history: ResMut<TickHistory>,
-    // Query für deine Simulationsentitäten, um den Zustand wiederherzustellen
 ) {
     let current_snapshot_time = history
         .get_current_display_snapshot()

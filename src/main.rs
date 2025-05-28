@@ -1,7 +1,7 @@
 // ./src/main.rs
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
-use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
+use bevy_panorbit_camera::PanOrbitCameraPlugin;
 
 // Eigene Module deklarieren
 pub mod debug;
@@ -11,7 +11,9 @@ pub mod setup; // Wird für Kamera-Setup und Szene verwendet
 
 // Importiere spezifische Elemente aus unseren Modulen
 
-use debug::{ui::simulation_control_ui_system, visualization::draw_normal_arrows_system}; // Importiere SVG-Dumper
+use debug::{
+    ui::simulation_control_ui_system, visualization::normal_vector::draw_normal_arrows_system,
+}; // Importiere SVG-Dumper
 use physics::sim::resources::SimulationParameters; // Geänderter Pfad
 use physics::sim::time::{
     resources::{SimulationSnapshot, TickHistory}, // Korrekte Pfade
