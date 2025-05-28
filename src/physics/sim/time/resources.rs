@@ -1,6 +1,30 @@
 use bevy::prelude::*;
 use std::collections::VecDeque;
 
+// ExecuteSingleStepFlag und ExecuteStepBackwardFlag müssen als Ressourcen definiert werden
+#[derive(Resource, PartialEq, Debug, Clone, Copy)]
+pub struct ExecuteSingleStepFlag(pub bool); // true, wenn ein Einzelschritt ausgeführt werden soll
+
+impl Default for ExecuteSingleStepFlag {
+    fn default() -> Self {
+        Self(false)
+    }
+}
+
+#[derive(Resource, PartialEq, Debug, Clone, Copy)]
+pub struct ExecuteStepBackwardFlag(pub bool); // true, wenn ein Schritt zurück ausgeführt werden soll
+
+impl Default for ExecuteStepBackwardFlag {
+    fn default() -> Self {
+        Self(false)
+    }
+}
+// ExecuteSingleStepFlag und ExecuteStepBackwardFlag müssen als Ressourcen definiert werden
+#[derive(Resource, Default, Debug, Clone, Copy, PartialEq)]
+pub struct ExecuteSingleStepRequest(pub bool); // Ersetzt das Flag in SimParams
+#[derive(Resource, Default, Debug, Clone, Copy, PartialEq)]
+pub struct ExecuteStepBackwardRequest(pub bool); // Ersetzt das Flag in SimParams
+
 // SimulationSnapshot definiert, was pro Zeitschritt gespeichert wird.
 #[derive(Clone, Debug, Default)]
 pub struct SimulationSnapshot {
