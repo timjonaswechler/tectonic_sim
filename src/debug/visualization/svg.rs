@@ -1,5 +1,4 @@
-use spade::{DelaunayTriangulation, Point2, Triangulation};
-use std::fs::File;
+use spade::Point2;
 use std::io::Write;
 // In deiner main.rs oder einem dedizierten Debug-Modul:
 

@@ -23,7 +23,8 @@ pub struct SimulationParameters {
     pub mantle_convection_strength_factor: f32,
 
     // --- Parameter für Plattengenerierung und -verhalten ---
-    pub target_plate_count: u32,
+    pub gen_max_craton_angular_extent_deg: f32,
+    pub craton_num: u32,
     pub min_initial_plate_surface_area_ratio: f32,
     pub max_initial_plate_surface_area_ratio: f32,
     pub initial_continental_crust_probability: f32,
@@ -53,7 +54,7 @@ impl Default for SimulationParameters {
             execute_step_backward_request: false,
 
             // Planet/Physik
-            planet_radius_km: 6371.0,
+            planet_radius_km: 1.0,
             oceanic_crust_density_kg_m3: 2900.0,
             continental_crust_density_kg_m3: 2700.0,
             mantle_density_kg_m3: 3300.0,
@@ -61,7 +62,8 @@ impl Default for SimulationParameters {
             mantle_convection_strength_factor: 1.0,
 
             // Platten
-            target_plate_count: 12,
+            gen_max_craton_angular_extent_deg: 15.0,
+            craton_num: 12,
             min_initial_plate_surface_area_ratio: 0.01,
             max_initial_plate_surface_area_ratio: 0.20,
             initial_continental_crust_probability: 0.3,

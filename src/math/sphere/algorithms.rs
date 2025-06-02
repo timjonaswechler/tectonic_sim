@@ -1,6 +1,5 @@
 // src/math/util.rs
 use bevy::prelude::Vec3;
-use std::f32::consts::PI;
 
 /// Konvertiert geografische Koordinaten (Breitengrad, Längengrad) in kartesische 3D-Koordinaten.
 /// Die Y-Achse ist die Rotationsachse der Kugel (zeigt zum Nordpol).
@@ -134,7 +133,7 @@ pub fn rotate_vector_around_axis(point_to_rotate: Vec3, axis: Vec3, angle_rad: f
 mod tests {
     use super::*;
     use std::f32::consts::FRAC_PI_2;
-
+    use std::f32::consts::PI;
     #[test]
     fn test_latlon_cartesian_conversion() {
         let radius = 100.0;

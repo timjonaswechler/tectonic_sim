@@ -9,5 +9,5 @@ pub enum SimulationState {
     // Optional:
     // SteppingForward, // Für den Moment, in dem ein Einzelschritt ausgeführt wird
     // SteppingBackward,
-    // Resetting,
+    Resetting,
 }

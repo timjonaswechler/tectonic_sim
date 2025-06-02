@@ -1,18 +1,17 @@
 // ./src/setup.rs
-use crate::debug::visualization::normal_vector::NormalArrowVisual;
+use crate::{debug::visualization::normal_vector::NormalArrowVisual, physics::sim};
 use bevy::prelude::*;
 use bevy_panorbit_camera::PanOrbitCamera;
-
-const SPHERE_RADIUS: f32 = 1.0;
 
 pub fn setup_scene(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut sim_params: ResMut<sim::resources::SimulationParameters>,
 ) {
     // Kugel als Platzhalter für den Planeten
     commands.spawn(PbrBundle {
-        mesh: meshes.add(Sphere::new(SPHERE_RADIUS).mesh().build()), // Standard Kugelradius 1.0
+        mesh: meshes.add(Sphere::new(sim_params.planet_radius_km).mesh().build()),
         material: materials.add(StandardMaterial {
             base_color: Color::rgb(0.3, 0.5, 0.3),
             metallic: 0.2,
@@ -50,7 +49,7 @@ pub fn setup_scene(
     ));
     // --- Test-Pfeile spawnen ---
     // Pfeil am Nordpol
-    let north_pole_origin = Vec3::new(0.0, SPHERE_RADIUS, 0.0);
+    let north_pole_origin = Vec3::new(0.0, sim_params.planet_radius_km, 0.0);
     commands.spawn(NormalArrowVisual {
         origin: north_pole_origin,
         direction: north_pole_origin.normalize(), // Normale ist der normalisierte Vektor vom Kugelzentrum zum Punkt
@@ -59,7 +58,7 @@ pub fn setup_scene(
     });
 
     // Pfeil am Äquator (X-Achse)
-    let equator_x_origin = Vec3::new(SPHERE_RADIUS, 0.0, 0.0);
+    let equator_x_origin = Vec3::new(sim_params.planet_radius_km, 0.0, 0.0);
     commands.spawn(NormalArrowVisual {
         origin: equator_x_origin,
         direction: equator_x_origin.normalize(),
@@ -68,20 +67,11 @@ pub fn setup_scene(
     });
 
     // Pfeil am Äquator (Z-Achse)
-    let equator_z_origin = Vec3::new(0.0, 0.0, SPHERE_RADIUS);
+    let equator_z_origin = Vec3::new(0.0, 0.0, sim_params.planet_radius_km);
     commands.spawn(NormalArrowVisual {
         origin: equator_z_origin,
         direction: equator_z_origin.normalize(),
         length: 0.3,
         color: Color::BLUE,
-    });
-
-    // Ein schräger Pfeil
-    let angled_origin = Vec3::new(1.0, 1.0, 0.0).normalize() * SPHERE_RADIUS;
-    commands.spawn(NormalArrowVisual {
-        origin: angled_origin,
-        direction: angled_origin.normalize(),
-        length: 0.4,
-        color: Color::ORANGE,
     });
 }

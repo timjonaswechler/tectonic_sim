@@ -4,10 +4,6 @@ use crate::math::sphere::algorithms::{
 };
 use bevy::prelude::{Vec2, Vec3}; // Verwende Bevy's Vec2 für Konsistenz, wenn möglich
 use spade::Point2;
-use std::f32::consts::PI; // PI ist f32
-
-// spade::Point2<f64> bleibt für die interne Voronoi-Logik.
-// Für die Projektion verwenden wir Vec2/Vec3 von Bevy (f32).
 
 /// Projiziert ein normalisiertes 2D-Polygon (Koordinaten im Bereich [-1, 1])
 /// auf die Oberfläche einer Kugel.

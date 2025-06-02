@@ -24,6 +24,17 @@ impl Default for NormalArrowVisual {
     }
 }
 
+impl NormalArrowVisual {
+    pub fn new(origin: Vec3, length: f32, color: Color) -> Self {
+        Self {
+            origin,
+            direction: origin.normalize(), // Stelle sicher, dass die Richtung normalisiert ist
+            length,
+            color,
+        }
+    }
+}
+
 /// System, das alle `NormalArrowVisual`-Entitäten nimmt und sie als Gizmos zeichnet.
 pub fn draw_normal_arrows_system(query: Query<&NormalArrowVisual>, mut gizmos: Gizmos) {
     for arrow_data in query.iter() {

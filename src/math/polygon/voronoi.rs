@@ -545,8 +545,8 @@ impl Default for VoronoiMergedShapeConfig {
         Self {
             num_initial_points: rng.random_range(100..=1000), // Default zwischen 100 und 1000
             num_lloyd_iterations: 10,
-            target_connected_cell_group_size: rng.random_range(1..=10),
-            chaikin_smoothing_iterations: 2,
+            target_connected_cell_group_size: rng.random_range(3..=7),
+            chaikin_smoothing_iterations: 1,
             inner_point_boundary_factor: 0.15, // 15% vom Rand nach "inner"
             rng_seed: None,
         }

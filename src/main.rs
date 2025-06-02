@@ -1,3 +1,4 @@
+use bevy::gizmos::GizmoPlugin;
 // ./src/main.rs
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
@@ -10,14 +11,19 @@ pub mod physics;
 pub mod setup; // Wird für Kamera-Setup und Szene verwendet
 
 // Importiere spezifische Elemente aus unseren Modulen
-
+use bevy::gizmos::prelude::GizmoConfig;
 use debug::{
-    ui::simulation_control_ui_system, visualization::normal_vector::draw_normal_arrows_system,
+    ui::simulation_control_ui_system,
+    visualization::{
+        normal_vector::draw_normal_arrows_system, polygon::draw_polygons_system,
+        sphere_grid::draw_sphere_grid_gizmos,
+    },
 }; // Importiere SVG-Dumper
+use physics::sim::init::craton::init_craton;
 use physics::sim::resources::*; // Geänderter Pfad
 use physics::sim::state::*;
+use physics::sim::systems::*;
 use physics::sim::time::resources::*;
-
 use physics::sim::time::{
     resources::{SimulationSnapshot, TickHistory}, // Korrekte Pfade
     systems::*,
@@ -26,74 +32,79 @@ use setup::setup_scene;
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .init_resource::<ExecuteSingleStepRequest>()
-        .init_resource::<ExecuteStepBackwardRequest>()
         .add_plugins(EguiPlugin)
         .add_plugins(PanOrbitCameraPlugin)
+        .init_resource::<ExecuteSingleStepRequest>()
+        .init_resource::<ExecuteStepBackwardRequest>()
         .init_resource::<SimulationParameters>()
         .insert_resource(TickHistory::new(1000)) // Max 1000 Snapshots
         .init_state::<SimulationState>()
-        .add_systems(
-            Startup,
-            (
-                // Deine 3D-Szene etc.
-                setup_scene,
-                // ------------------------------------------
-                create_initial_snapshot, // Läuft nach der 3D- und ggf. 2D-Initialisierung
-            )
-                .chain(),
-        )
+        .add_systems(Startup, (setup_scene,).chain())
         // --- Initialisierungsphase ---
         .add_systems(
             OnEnter(SimulationState::Initializing),
             (
                 // Systeme, die nur einmal zu Beginn der Initialisierung laufen
                 setup_initial_world_conditions_system, // Generiert z.B. erste Platten
-                create_initial_snapshot,               // Erstellt den allerersten Snapshot bei t=0
+                init_craton,
             ),
         )
         .add_systems(
             Update,
-            // Systeme, die während der Initialisierung laufen, bis sie fertig sind
-            // z.B. eine iterative Plattengenerierung, die mehrere Frames braucht
-            // Dieses System muss dann den State zu Running/Paused wechseln
-            finish_initialization_system.run_if(in_state(SimulationState::Initializing)),
+            // Wechselt von Initializing zu Paused, nachdem Startup-Systeme gelaufen sind.
+            (|mut next_state: ResMut<NextState<SimulationState>>,
+              current_state: Res<State<SimulationState>>| {
+                if *current_state == SimulationState::Initializing {
+                    next_state.set(SimulationState::Paused);
+                    info!("Initialization sequence complete, simulation is Paused.");
+                }
+            })
+            .run_if(in_state(SimulationState::Initializing)),
         )
-        // --- Hauptsimulationslogik (wenn Running oder Paused und Einzelschritt) ---
-        // Diese Systeme ersetzen Teile des alten simulation_driver_system
         .add_systems(
             Update,
             (
-                // Diese Reihenfolge ist wichtig!
-                // 1. UI und Anfragen verarbeiten (setzt Parameter wie paused, step_request)
-                simulation_control_ui_system, // Hier werden execute_..._request Flags gesetzt
-                // 2. Anfragen auswerten und ggf. State-Änderungen oder Aktionen auslösen
-                handle_simulation_requests_system, // Neues System, das auf Flags reagiert
-                // 3. Timeline-Interaktion (kann auch display_time verändern)
-                handle_timeline_interaction_system,
-                // 4. Den eigentlichen Simulationsschritt ausführen, wenn nötig
-                advance_simulation_step_system.run_if(
-                    // Läuft, wenn Running ODER Paused UND ein Einzelschritt angefordert wurde
-                    // Die Logik, ob wirklich ein neuer Schritt gemacht wird, ist *in* dem System
-                    in_state(SimulationState::Running).or_else(
-                        in_state(SimulationState::Paused).and_then(resource_exists_and_equals(
-                            // Dieses Flag wird von handle_simulation_requests_system gesetzt
-                            ExecuteSingleStepFlag(true),
-                        )),
+                // Block 1: UI und Anfrageverarbeitung
+                simulation_control_ui_system,
+                handle_simulation_requests_system, // Reagiert auf UI, setzt States/Flags
+                handle_timeline_interaction_system, // Reagiert auf UI (Slider)
+                // Block 2: Zeit vorrücken für Playback (wenn Running und nicht am Frontier)
+                auto_advance_display_time_system.run_if(in_state(SimulationState::Running)),
+                // Block 3: Zustand aus History laden (wenn nötig)
+                load_state_from_history_system.run_if(should_load_from_history_condition),
+                // Block 4: Simulationsschritt ausführen und Snapshot erstellen
+                // Die Gruppe läuft, wenn:
+                // - State ist Running ODER
+                // - State ist Paused UND SingleStepRequest ist true
+                // UND
+                // - should_load_from_history_condition ist false (wir laden nicht gerade)
+                (
+                    run_plate_dynamics_system, // Deine Simulationslogik hier
+                    record_snapshot_system // Erstellt Snapshot danach
+                        .after(run_plate_dynamics_system), // explizite Ordnung innerhalb der Gruppe
+                )
+                    .run_if(
+                        (in_state(SimulationState::Running).or_else(
+                            in_state(SimulationState::Paused).and_then(
+                                // Verwende resource_equals von Bevy oder deine eigene Implementierung
+                                bevy::ecs::schedule::common_conditions::resource_equals(
+                                    ExecuteSingleStepRequest(true),
+                                ),
+                            ),
+                        ))
+                        .and_then(not(should_load_from_history_condition)),
                     ),
-                ),
-                // 5. Zustand basierend auf History laden, wenn durch Timeline oder Step Backward getriggert
-                load_state_from_history_system.run_if(
-                    // Läuft, wenn die display_time sich geändert hat und nicht am Frontier ist
-                    // ODER wenn ein Step Backward angefordert wurde
-                    // Dieses System muss intelligent sein, um nicht ständig zu laden
-                    should_load_from_history_condition,
-                ),
             )
-                .chain(), // Stelle sicher, dass sie in dieser Reihenfolge laufen
+                .chain(), // .chain() auf das gesamte Tupel der Update-Systeme
         )
-        // Visualisierung
-        .add_systems(Update, draw_normal_arrows_system)
+        .add_systems(
+            Update,
+            (
+                draw_normal_arrows_system,
+                draw_polygons_system,
+                draw_sphere_grid_gizmos,
+            ),
+        )
         .run();
 }
 
