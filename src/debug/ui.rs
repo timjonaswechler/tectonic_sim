@@ -15,10 +15,25 @@ pub fn simulation_control_ui_system(
     mut next_state: ResMut<NextState<SimulationState>>, // Für Zustandswechsel
     current_state: Res<State<SimulationState>>,         // Um aktuellen Zustand zu lesen
 ) {
+    let mut seed_input = String::new();
+    let mut seed_resource = seed_resource.clone();
+
     Window::new("Simulationssteuerung")
         .default_width(350.0)
         .show(contexts.ctx_mut(), |ui| {
             ui.heading("Globale Steuerung");
+            ui.horizontal(|ui| {
+                ui.label("Seed (Zahl oder Text):");
+                if ui.text_edit_singleline(&mut seed_input).lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                    // Seed setzen, je nach Eingabe
+                    if let Ok(num) = seed_input.parse::<u64>() {
+                        *seed_resource = SeedResource::from_seed(num);
+                    } else if !seed_input.is_empty() {
+                        *seed_resource = SeedResource::from_text(&seed_input);
+                    }
+                    // TODO: Event senden (siehe unten)
+                }
+            });
             ui.collapsing("Zeit & Geschwindigkeit", |ui| {
                 // ... (Zeitanzeige, Slider etc. bleiben gleich) ...
                 ui.label(format!(

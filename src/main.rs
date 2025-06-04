@@ -21,7 +21,7 @@ use debug::{
     },
 };
 use egui_dock::{DockState, NodeIndex, Split, TabDestination, Tree};
-use math::probability::seed::resource::SeedResource;
+use math::probability::seed::plugin::SeedPlugin;
 use physics::sim::{
     init::craton::init_craton,
     resources::*,
@@ -38,6 +38,7 @@ use setup::setup_scene;
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+        .add_plugins(SeedPlugin)
         .add_plugins(EguiPlugin)
         .add_plugins(PanOrbitCameraPlugin)
         .add_plugins(WorldInspectorPlugin::new())
@@ -45,7 +46,6 @@ fn main() {
         .init_resource::<ExecuteStepBackwardRequest>()
         .init_resource::<SimulationParameters>()
         .insert_resource(TickHistory::new(1000)) // Max 1000 Snapshots
-        .insert_resource(SeedResource::default())
         .init_state::<SimulationState>()
         .add_systems(Startup, (setup_scene, create_initial_snapshot).chain()) // create_initial_snapshot beim Start
         // --- Initialisierungsphase ---

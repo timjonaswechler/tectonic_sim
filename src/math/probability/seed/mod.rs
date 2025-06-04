@@ -1,2 +1,3 @@
+pub mod events;
+pub mod plugin;
 pub mod resource;
-pub mod types;
