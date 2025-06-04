@@ -1,5 +1,8 @@
 use super::resources::SimulationParameters;
-use bevy::prelude::*;
+use crate::debug::visualization::{normal_vector::NormalArrowVisual, polygon::PolygonVisual};
+use crate::physics::geology::tectonic::feature::Craton;
+use crate::physics::sim::time::resources::TickHistory;
+use bevy::prelude::*; // Hinzufügen für clear_tick_history_system
 
 // BEISPIEL: System für Plattentektonik-Dynamik
 pub fn run_plate_dynamics_system(
@@ -56,4 +59,31 @@ pub fn process_generated_shapes_system(
     //         info!("New Craton spawned at t_advanced = {:.2}", sim_params.advanced_simulation_time_ma);
     //     }
     // }
+}
+
+pub fn cleanup_simulation_entities_system(
+    mut commands: Commands,
+    craton_query: Query<Entity, With<Craton>>,
+    polygon_query: Query<Entity, With<PolygonVisual>>,
+    arrow_query: Query<Entity, With<NormalArrowVisual>>,
+    // Füge hier weitere Queries für andere Simulations-Entitäten hinzu, falls nötig
+) {
+    info!("Cleaning up simulation entities...");
+    for entity in craton_query.iter() {
+        commands.entity(entity).despawn_recursive();
+    }
+    for entity in polygon_query.iter() {
+        commands.entity(entity).despawn_recursive();
+    }
+    for entity in arrow_query.iter() {
+        commands.entity(entity).despawn_recursive();
+    }
+    info!("Simulation entities cleaned up.");
+}
+
+pub fn clear_tick_history_system(mut history: ResMut<TickHistory>) {
+    info!("Clearing TickHistory.");
+    history.clear();
+    // Der initiale Snapshot wird durch `create_initial_snapshot` hinzugefügt,
+    // das nach dieser Systemausführung im Resetting-State aufgerufen wird.
 }

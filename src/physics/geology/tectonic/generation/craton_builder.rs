@@ -1,7 +1,8 @@
-use crate::math::polygon::voronoi::generate_normalized_voronoi_merged_shape;
-use crate::math::sphere::projection::project_normalized_2d_polygon_to_sphere;
+use crate::math::geometry::sphere::projection::project_normalized_2d_polygon_to_sphere;
+use crate::math::geometry::voronoi::generate_normalized_voronoi_merged_shape;
 use crate::{
-    math::polygon::voronoi::VoronoiMergedShapeConfig, physics::sim::resources::SimulationParameters,
+    math::geometry::voronoi::VoronoiMergedShapeConfig,
+    physics::sim::resources::SimulationParameters,
 };
 use bevy::prelude::Bundle;
 use bevy::prelude::*;
@@ -28,10 +29,7 @@ impl CratonBuilder {
             rng_seed: Some((sim_params.advanced_simulation_time_ma * 1000.0) as u64 + 1), // Anderer Seed
             ..Default::default()
         };
-        info!(
-            "Target Connected Cell Group Size: {}",
-            config.target_connected_cell_group_size
-        );
+
         let normalized_2d_polygon = generate_normalized_voronoi_merged_shape(&config);
 
         if !normalized_2d_polygon.is_empty() {
@@ -39,10 +37,7 @@ impl CratonBuilder {
             let sphere_radius = sim_params.planet_radius_km;
             let max_angular_extent_deg =
                 max_craton_angular_deg(config.target_connected_cell_group_size as f32); // Aus SimParams
-            info!(
-                "Max angular extent for craton {}: {} degrees",
-                name_str, max_angular_extent_deg
-            );
+
             let projected_3d_vertices = project_normalized_2d_polygon_to_sphere(
                 &normalized_2d_polygon,
                 sphere_center_normalized,
