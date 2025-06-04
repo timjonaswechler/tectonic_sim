@@ -1,7 +1,7 @@
 // src/math/geometry/polygon/transformations/projection.rs
 
 use super::super::Polygon;
-use crate::math::{error::*, sphere::projection::*, types::*, utils::*};
+use crate::math::{error::*, geometry::sphere::projection::*, types::*, utils::*};
 
 /// 2D zu 2D Projektionstypen
 #[derive(Debug, Clone, Copy)]
