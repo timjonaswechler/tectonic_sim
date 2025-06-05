@@ -280,24 +280,17 @@ impl SphereRotation {
     }
     
     /// Generiert gleichmäßige Rotationen um alle Achsen
-    pub fn uniform_rotations(count: usize, seed: Option<u64>) -> Vec<Quaternion> {
-        use rand::{Rng, SeedableRng};
-        
-        let mut rng = match seed {
-            Some(s) => rand::rngs::StdRng::seed_from_u64(s),
-            None => rand::rngs::StdRng::from_entropy(),
-        };
-        
+    pub fn uniform_rotations(count: usize, seed_resource: Res<SeedResource>) -> Vec<Quaternion> {
         (0..count)
             .map(|_| {
                 // Marsaglia-Methode für uniform verteilte Quaternions
-                let u1 = rng.gen::<f32>();
-                let u2 = rng.gen_range(0.0..TAU);
-                let u3 = rng.gen_range(0.0..TAU);
-                
+                let u1 = next_random_value!(seed_resource);
+                let u2 = next_random_range!(seed_resource, 0.0..TAU);
+                let u3 = next_random_range!(seed_resource, 0.0..TAU);
+
                 let sqrt1_u1 = (1.0 - u1).sqrt();
                 let sqrt_u1 = u1.sqrt();
-                
+
                 Quaternion::new(
                     sqrt1_u1 * u2.sin(),
                     sqrt1_u1 * u2.cos(),
