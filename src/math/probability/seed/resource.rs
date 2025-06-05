@@ -62,30 +62,24 @@ impl SpiralCursor {
 #[derive(Resource, Debug, Clone)]
 pub struct SeedResource {
     pub seed: u64,
-    pub probabilities: super::noise::Noise, // Deine Noise-Instanz
-
-    // Für kategorisierte sequentielle Werte mit Spirale und Z-Ebene
-    // Key: Kategorie-Name (String), Value: SpiralCursor
+    pub probabilities: super::noise::Noise,
     categorical_spiral_cursors: HashMap<String, SpiralCursor>,
-
-    // Standard Z-Offset Multiplikator für Kategorien
     category_z_multiplier: f64,
 }
 
 impl SeedResource {
     pub fn from_seed(seed_val: u64) -> Self {
-        let mut noise_gen = super::noise::Noise::default();
+        let mut noise_gen = super::noise::Noise::default(); // Noise::new()
+        // Noise::set_seed erwartet Option<i64> nach unserer Anpassung
         noise_gen.set_seed(Some(seed_val as i64));
-        // Da du sagst, Frequenz ist 1 und step_size ist 1, setzen wir das hier so.
-        // Das bedeutet, wir verwenden die Noise-Koordinaten direkt.
         noise_gen.set_frequency(Some(1.0));
-        noise_gen.set_fractal_octaves(Some(1)); // Oder was auch immer hier passend ist
+        noise_gen.set_fractal_octaves(Some(1)); // u32
 
         Self {
             seed: seed_val,
             probabilities: noise_gen,
             categorical_spiral_cursors: HashMap::new(),
-            category_z_multiplier: 10.0, // Sorgt für genügend Abstand zwischen Z-Ebenen der Kategorien
+            category_z_multiplier: 10.0,
         }
     }
 
@@ -96,9 +90,8 @@ impl SeedResource {
         Self::from_seed(seed_val)
     }
 
-    /// Liefert den "nächsten" Noise-Wert für eine bestimmte Kategorie
-    /// unter Verwendung einer eigenen Z-Ebene und eines spiralförmigen Cursors in X/Y.
     pub fn next_value_for_category(&mut self, category: &str) -> f64 {
+        // Rückgabe jetzt f64
         let spiral_cursor = self
             .categorical_spiral_cursors
             .entry(category.to_string())
@@ -106,42 +99,86 @@ impl SeedResource {
 
         let (cx, cy) = spiral_cursor.next_point();
 
-        // Z-Koordinate basierend auf dem Hash der Kategorie bestimmen
         let mut category_hasher = DefaultHasher::new();
         category.hash(&mut category_hasher);
-        // Der Hash wird verwendet, um eine "einzigartige" Z-Ebene zu finden.
-        // Modulo und Multiplikator, um die Z-Werte etwas zu streuen und Kollisionen unwahrscheinlicher zu machen.
-        // Die `probabilities` Instanz wird hier ihren eigenen `seed` (vom Hauptseed abgeleitet) verwenden.
-        // Die Z-Koordinate selbst ist relativ zum internen Seed der Noise-Instanz.
         let cz = (category_hasher.finish() % 1000) as f64 * self.category_z_multiplier;
 
-        // Verwende get_noise_3d, da jede Kategorie ihre eigene Z-Ebene hat.
-        // Die Typkonvertierung von i64 (Cursor) zu f64 (Float in Noise) ist wichtig.
+        // super::super::noise::Float ist f64
         let value = self.probabilities.get_noise_3d(
-            cx as super::noise::noise::Float, // Float ist f64 in noise.rs
-            cy as super::noise::noise::Float,
-            cz as super::noise::noise::Float,
+            cx as Float,
+            cy as Float,
+            cz as Float, // cz ist schon f64
         );
-
         value
     }
 
-    /// Liefert den "nächsten" unspezifischen Noise-Wert.
-    /// Nutzt die Kategorie "default" implizit.
     pub fn next_value(&mut self) -> f64 {
-        self.next_value_for_category("__default__") // Eine Standard-Kategorie
+        // Rückgabe jetzt f64
+        self.next_value_for_category("__default__")
+    }
+    /// Liefert einen normalisierten Wert im Bereich [0.0, 1.0)
+    pub fn next_value_normalized(&mut self, category_opt: Option<&str>) -> f64 {
+        let val = match category_opt {
+            Some(cat) => self.next_value_for_category(cat),
+            None => self.next_value(),
+        };
+        (val + 1.0) * 0.5
+    }
+    /// Liefert ein zufälliges bool mit einer gegebenen Wahrscheinlichkeit für `true`.
+    /// Optional kann eine Kategorie angegeben werden.
+    pub fn next_bool_with_probability(
+        &mut self,
+        probability_true: f64,
+        category_opt: Option<&str>,
+    ) -> bool {
+        let normalized_val = match category_opt {
+            Some(cat) => self.next_value_for_category(cat),
+            None => self.next_value(),
+        };
+        normalized_val < probability_true.clamp(0.0, 1.0) // probability_true sollte [0,1] sein
     }
 
-    /// Ändert den globalen Seed und setzt alle Cursor zurück.
+    /// Liefert ein zufälliges bool (ca. 50/50 Chance).
+    /// Optional kann eine Kategorie angegeben werden.
+    pub fn next_bool(&mut self, category_opt: Option<&str>) -> bool {
+        let val = match category_opt {
+            Some(cat) => self.next_value_for_category(cat),
+            None => self.next_value(),
+        };
+        val > 0.0 // Noise-Werte sind um 0 zentriert
+    }
+    /// Liefert eine zufällige Ganzzahl im Bereich [min, max).
+    /// Optional kann eine Kategorie angegeben werden.
+    pub fn next_i64_in_range(&mut self, min: i64, max: i64, category_opt: Option<&str>) -> i64 {
+        if min >= max {
+            // Oder panic!("max must be greater than min in next_i64_in_range");
+            return min;
+        }
+        let normalized_val = match category_opt {
+            Some(cat) => self.next_value_normalized(Some(cat)),
+            None => self.next_value_normalized(Some(())),
+        };
+        let range_size = (max - min) as f64;
+        min + (normalized_val * range_size).floor() as i64
+    }
+    pub fn next_f64_in_range(&mut self, min: f64, max: f64, category_opt: Option<&str>) -> f64 {
+        if min >= max {
+            // Oder panic!("max must be greater than min in next_f64_in_range");
+            return min;
+        }
+        let normalized_val = match category_opt {
+            Some(cat) => self.next_value_normalized(Some(cat)),
+            None => self.next_value_normalized(Some(())),
+        };
+        let range_size = max - min;
+        min + (normalized_val * range_size)
+    }
+
     pub fn reset_with_new_seed(&mut self, new_seed_val: u64) {
         self.seed = new_seed_val;
+        // Noise::set_seed erwartet Option<i64>
         self.probabilities.set_seed(Some(new_seed_val as i64));
-        // Ggf. Frequenz/Oktaven etc. hier anpassen, wenn sie vom Seed abhängen sollen.
-        // Da Frequenz=1 fest ist, brauchen wir das hier nicht.
-
-        // Cursor zurücksetzen
         self.categorical_spiral_cursors.clear();
-        // info!("SeedResource resettet mit neuem Seed: {}", new_seed_val);
     }
 }
 
