@@ -2,11 +2,10 @@
 use super::config::VoronoiConfig;
 use super::lloyd::LloydRelaxation;
 use super::merger::PolygonMerger;
-use crate::math::{
-    error::{MathError, MathResult},
-    geometry::polygon::smoothing::ChaikinSmoother,
-    types::*,
-};
+use crate::math::probability::SeedResource;
+
+use crate::math::{error::MathResult, geometry::polygon::smoothing::ChaikinSmoother};
+use crate::next_random_value;
 use spade::Point2;
 
 pub struct VoronoiGenerator {
@@ -19,9 +18,9 @@ impl VoronoiGenerator {
         Ok(Self { config })
     }
 
-    pub fn generate(&self) -> MathResult<Vec<Point2<f64>>> {
+    pub fn generate(&self, seed_resource: Res<SeedResource>) -> MathResult<Vec<Point2<f64>>> {
         // 1. Initiale Punkte generieren
-        let initial_points = self.generate_initial_points()?;
+        let initial_points = self.generate_initial_points(seed_resource)?;
 
         // 2. Lloyd-Relaxation anwenden
         let relaxation = LloydRelaxation::new(&self.config);
@@ -39,15 +38,15 @@ impl VoronoiGenerator {
         Ok(self.normalize_polygon(&smoothed))
     }
 
-    fn generate_initial_points(&self) -> MathResult<Vec<Point2<f64>>> {
-        use rand::Rng;
-
-        let mut rng = self.create_rng();
+    fn generate_initial_points(
+        &self,
+        seed_resource: Res<SeedResource>,
+    ) -> MathResult<Vec<Point2<f64>>> {
         let mut points = Vec::with_capacity(self.config.initial_points);
 
         for _ in 0..self.config.initial_points {
-            let x = rng.gen_range(-1.0..=1.0);
-            let y = rng.gen_range(-1.0..=1.0);
+            let x = next_random_value!(seed_resource);
+            let y = next_random_value!(seed_resource);
             points.push(Point2::new(x, y));
         }
 
@@ -58,14 +57,5 @@ impl VoronoiGenerator {
         // Implementierung der Normalisierung
         // (vereinfacht hier)
         polygon.to_vec()
-    }
-
-    fn create_rng(&self) -> impl rand::Rng {
-        use rand::SeedableRng;
-
-        match self.config.seed {
-            Some(seed) => rand::rngs::StdRng::seed_from_u64(seed),
-            None => rand::rngs::StdRng::from_entropy(),
-        }
     }
 }
