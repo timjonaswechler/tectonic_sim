@@ -24,7 +24,7 @@ pub trait PolygonProperties {
 
     /// Bestimmt die Orientierung des Polygons (im Uhrzeigersinn oder gegen den Uhrzeigersinn).
     /// Basiert auf dem Vorzeichen der (doppelten) Fläche.
-    fn orientation(&self) -> Orientation;
+    fn orientation(&self) -> PolygonOrientation;
 
     /// Berechnet den geometrischen Schwerpunkt (Zentroid) des Polygons.
     /// Dies ist der "Massenmittelpunkt", wenn das Polygon eine homogene Dichte hätte.
@@ -34,7 +34,7 @@ pub trait PolygonProperties {
 
 /// Gibt die Orientierung eines Polygons an.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Orientation {
+pub enum PolygonOrientation {
     Clockwise,
     CounterClockwise,
     Collinear, // Alle Punkte liegen auf einer Linie
@@ -230,12 +230,12 @@ impl PolygonProperties for Polygon {
         sign_of_cross_product.is_some()
     }
 
-    fn orientation(&self) -> Orientation {
+    fn orientation(&self) -> PolygonOrientation {
         let vertices = self.vertices();
         let n = vertices.len();
 
         if n < 3 {
-            return Orientation::Collinear;
+            return PolygonOrientation::Collinear;
         }
 
         // Die `area()` Methode gibt den Absolutwert. Wir brauchen hier das vorzeichenbehaftete Ergebnis der Shoelace-Formel.
@@ -247,11 +247,11 @@ impl PolygonProperties for Polygon {
         };
         if num_edges < 2 && n >= 3 {
             if n == 3 && !self.is_closed() {
-                return Orientation::Collinear;
+                return PolygonOrientation::Collinear;
             }
         }
         if num_edges < 1 {
-            return Orientation::Collinear;
+            return PolygonOrientation::Collinear;
         }
 
         for i in 0..num_edges {
@@ -261,16 +261,16 @@ impl PolygonProperties for Polygon {
         }
 
         if !self.is_closed() && n < 3 {
-            return Orientation::Collinear;
+            return PolygonOrientation::Collinear;
         }
 
         if signed_area_doubled.abs() < constants::EPSILON * n as f32 {
             // Toleranz basierend auf Anzahl der Punkte
-            Orientation::Collinear
+            PolygonOrientation::Collinear
         } else if signed_area_doubled > 0.0 {
-            Orientation::CounterClockwise // Standardorientierung für positive Fläche
+            PolygonOrientation::CounterClockwise // Standardorientierung für positive Fläche
         } else {
-            Orientation::Clockwise
+            PolygonOrientation::Clockwise
         }
     }
 

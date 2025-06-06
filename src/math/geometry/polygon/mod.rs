@@ -14,7 +14,7 @@ pub mod transformations; // Enthält affine, distortion, projection für Polygon
 
 // Re-Exporte für den einfachen Zugriff auf die wichtigsten Polygon-Elemente
 pub use self::core::Polygon; // Die Polygon-Struktur
-pub use self::properties::{Orientation, PolygonProperties}; // Der Eigenschaften-Trait und Enum
+pub use self::properties::{PolygonOrientation, PolygonProperties}; // Der Eigenschaften-Trait und Enum
 pub use self::validation::{
     PolygonValidator, QuickValidation, ValidationError, ValidationLevel, ValidationReport,
     ValidationSuggestion, ValidationWarning,

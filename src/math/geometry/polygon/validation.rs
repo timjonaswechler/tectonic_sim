@@ -2,7 +2,7 @@
 
 use crate::math::geometry::polygon::{
     core::Polygon,
-    properties::{Orientation, PolygonProperties},
+    properties::{PolygonOrientation, PolygonProperties},
 };
 use crate::math::types::Vector2DExt; // Für Vec2 Methoden wie length(), dot(), cross_product()
 use crate::math::utils::constants; // Für EPSILON, nearly_equal, etc.
@@ -317,14 +317,14 @@ impl PolygonValidator {
         }
         match polygon.orientation() {
             // PolygonProperties Trait muss im Scope sein
-            Orientation::Clockwise => {
+            PolygonOrientation::Clockwise => {
                 report.add_warning(ValidationWarning::ClockwiseOrientation);
                 report.add_suggestion(ValidationSuggestion::ChangeOrientation);
             }
-            Orientation::Collinear => {
+            PolygonOrientation::Collinear => {
                 // Bereits durch validate_area oder edge_lengths abgedeckt, aber ggf. spezifische Warnung
             }
-            Orientation::CounterClockwise => {} // Erwünschte Orientierung
+            PolygonOrientation::CounterClockwise => {} // Erwünschte Orientierung
         }
     }
 
