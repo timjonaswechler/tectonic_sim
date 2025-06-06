@@ -1,14 +1,20 @@
-pub mod builder;
-pub mod components;
-pub mod field;
-pub mod influence;
-pub mod marching_squares;
-pub mod metalballs;
-pub mod objects;
+// src/math/geometry/metalballs/mod.rs
 
-pub use builder::*;
-pub use components::*;
-pub use field::*;
-pub use influence::*;
-pub use marching_squares::*;
-pub use metalballs::*;
+pub mod builder; // MetaballsBuilder
+pub mod components; // GridConfig
+pub mod field; // MetaballField
+pub mod influence; // Trait FieldInfluence und Implementierungen wie Composite, Line, Point
+pub mod marching_squares; // MarchingSquares Algorithmus und Contour
+pub mod metalballs;
+
+// Wichtige Re-Exporte für die einfache Nutzung des Metaball-Systems
+pub use self::builder::MetaballsBuilder;
+pub use self::components::GridConfig;
+pub use self::field::MetaballField;
+pub use self::influence::{
+    CombinationMode, CompositeInfluence, FieldInfluence, InfluenceUtils, LineInfluence,
+    MetaballFalloff, MetaballSource, PointInfluence, PolygonFalloff, PolygonInfluence,
+    PolygonInfluenceBuilder,
+};
+pub use self::marching_squares::{Contour, MarchingSquares, MarchingSquaresIterator};
+pub use self::metalballs::Metaballs;

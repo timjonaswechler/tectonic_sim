@@ -1,6 +1,15 @@
-use super::{GridConfig, influence::FieldInfluence};
+// src/math/geometry/metalballs/builder.rs
 
-#[derive(Debug, Clone)]
+use crate::math::geometry::metalballs::{
+    components::GridConfig,
+    influence::FieldInfluence, // Der Trait
+    influence::MetaballSource, // Die konkrete Metaball-Struktur
+    metalballs::Metaballs,     // Die zu bauende Struktur
+};
+use std::sync::Arc;
+
+/// Builder zum komfortablen Erstellen und Konfigurieren von `Metaballs`-Instanzen.
+#[derive(Debug, Clone)] // Clone ist möglich, da Vec<Arc<...>> cloneable ist
 pub struct MetaballsBuilder {
     pub config: GridConfig,
     sources: Vec<Arc<dyn FieldInfluence>>,
@@ -16,39 +25,67 @@ impl Default for MetaballsBuilder {
 }
 
 impl MetaballsBuilder {
+    /// Erstellt einen neuen `MetaballsBuilder` mit Standardkonfiguration.
     pub fn new() -> Self {
         Self::default()
     }
 
-    pub fn grid_size(mut self, w: usize, h: usize) -> Self {
-        self.config.width = w;
-        self.config.height = h;
+    /// Setzt die Breite und Höhe des Grids in Zellen.
+    pub fn grid_dimensions(mut self, width: usize, height: usize) -> Self {
+        self.config.width = width.max(1); // Mindestens 1x1 Grid
+        self.config.height = height.max(1);
         self
     }
 
+    /// Setzt die Größe einer einzelnen Zelle in Weltkoordinaten.
     pub fn cell_size(mut self, size: f32) -> Self {
-        self.config.cell_size = size;
+        self.config.cell_size = size.max(crate::math::utils::constants::EPSILON); // Muss positiv sein
         self
     }
 
-    pub fn threshold(mut self, t: f32) -> Self {
-        self.config.threshold = t;
+    /// Setzt den Schwellenwert für die Iso-Kontur-Extraktion.
+    pub fn threshold(mut self, threshold_value: f32) -> Self {
+        self.config.threshold = threshold_value;
         self
     }
 
-    /// Fügt eine beliebige Feld-Quelle hinzu.
-    pub fn add_source<I: FieldInfluence + 'static>(mut self, s: I) -> Self {
-        self.sources.push(Arc::new(s));
+    /// Setzt die gesamte Grid-Konfiguration.
+    pub fn with_config(mut self, config: GridConfig) -> Self {
+        self.config = config;
         self
     }
 
-    /// Komfort-Alias speziell für Kreise – bricht alte Nutzer-API nicht.
-    pub fn add_ball(mut self, ball: crate::metaball::Metaball) -> Self {
-        self.sources.push(Arc::new(ball));
+    /// Fügt eine beliebige Feld-Einflussquelle hinzu.
+    /// Die Quelle muss das `FieldInfluence`-Trait implementieren und `'static` sein,
+    /// um in einem `Arc<dyn ...>` gespeichert werden zu können.
+    pub fn add_source<I: FieldInfluence + 'static>(mut self, source: I) -> Self {
+        self.sources.push(Arc::new(source));
         self
     }
 
-    pub fn build(self) -> crate::metaballs::Metaballs {
-        crate::metaballs::Metaballs::with_config(self.config, self.sources)
+    /// Fügt eine bereits in `Arc` gepackte Feld-Einflussquelle hinzu.
+    pub fn add_source_arc(mut self, source_arc: Arc<dyn FieldInfluence>) -> Self {
+        self.sources.push(source_arc);
+        self
+    }
+
+    /// (Beibehalten für API-Kompatibilität, obwohl `add_source` generischer ist)
+    /// Fügt einen spezifischen `Metaball` als Einflussquelle hinzu.
+    pub fn add_ball(self, ball: MetaballSource) -> Self {
+        self.add_source(ball)
+    }
+
+    /// Fügt mehrere Quellen auf einmal hinzu.
+    pub fn add_sources<I>(mut self, sources_iter: I) -> Self
+    where
+        I: IntoIterator<Item = Arc<dyn FieldInfluence>>,
+    {
+        self.sources.extend(sources_iter);
+        self
+    }
+
+    /// Erstellt die `Metaballs`-Instanz mit der aktuellen Konfiguration und den hinzugefügten Quellen.
+    pub fn build(self) -> Metaballs {
+        Metaballs::from_builder_data(self.config, self.sources)
     }
 }

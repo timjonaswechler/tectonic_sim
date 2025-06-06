@@ -63,15 +63,8 @@ pub use self::metalballs::{
     GridConfig, MetaballField, Metaballs, MetaballsBuilder,
     influence::{
         CombinationMode, CompositeInfluence, FieldInfluence, InfluenceUtils, LineInfluence,
-        PointInfluence,
-    },
-    marching_squares::{Contour, MarchingSquares, MarchingSquaresIterator},
-    objects::{
-        // Konkrete Influence-Objekte
-        Metaball,
-        MetaballFalloff,
-        PolygonFalloff,
-        PolygonInfluence,
+        MetaballFalloff, MetaballSource, PointInfluence, PolygonFalloff, PolygonInfluence,
         PolygonInfluenceBuilder,
     },
+    marching_squares::{Contour, MarchingSquares, MarchingSquaresIterator},
 };
