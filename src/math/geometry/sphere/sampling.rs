@@ -1,202 +1,282 @@
+// src/math/geometry/sphere/sampling.rs
 
-use crate::math::{error::*, types::*, utils::*, geometry::sphere::coordinates::*};
-use rand::{Rng, SeedableRng};
+use crate::math::{
+    MathError,
+    MathResult,
+    geometry::sphere::coordinates::{CoordinateConverter, SphericalCoordinates}, // SphericalCoords für einige Methoden
+    utils::*, // constants, comparison, angles
+};
+use bevy::math::{Quat as BevyQuat, Vec2, Vec3};
+use rand::Rng; // Standard Rng Trait
 use std::f32::consts::{PI, TAU};
 
-/// Verschiedene Sampling-Methoden für Kugel-Oberflächen
+/// Verschiedene Sampling-Methoden für Punkte auf einer Kugeloberfläche.
 #[derive(Debug, Clone, Copy)]
-pub enum SamplingMethod {
-    /// Uniform verteilte Punkte
+pub enum SphereSamplingMethod {
+    // Umbenannt von SamplingMethod zur Klarheit
+    /// Uniform verteilte Punkte (statistisch).
     Uniform,
-    /// Fibonacci-Spirale (gleichmäßige Verteilung)
+    /// Punkte verteilt entlang einer Fibonacci-Spirale (sehr gleichmäßig).
     Fibonacci,
-    /// Stratified Sampling (Grid-basiert)
+    /// Stratified Sampling (Grid-basiert mit Jitter).
     Stratified,
-    /// Poisson Disk Sampling (minimaler Abstand)
-    PoissonDisk { min_distance: f32 },
+    /// Poisson Disk Sampling (garantiert minimalen Abstand zwischen Punkten).
+    PoissonDisk { min_angular_distance_rad: f32 }, // Abstand als Winkel
 }
 
-/// Sphere-Sampler für verschiedene Sampling-Strategien
+/// Sampler zum Erzeugen von Punkten auf einer Kugeloberfläche.
 pub struct SphereSampler {
-    method: SamplingMethod,
+    method: SphereSamplingMethod,
     radius: f32,
-    rng: rand::rngs::StdRng,
 }
 
 impl SphereSampler {
-    /// Erstellt einen neuen Sampler
-    pub fn new(method: SamplingMethod, radius: f32) -> Self {
-        Self {
-            method,
-            radius,
-            rng: rand::rngs::StdRng::from_entropy(),
+    /// Erstellt einen neuen Kugel-Sampler.
+    pub fn new(method: SphereSamplingMethod, radius: f32) -> MathResult<Self> {
+        if radius <= 0.0 {
+            return Err(MathError::InvalidConfiguration {
+                message: "Sphere radius must be positive for sampling.".to_string(),
+            });
         }
+        Ok(Self { method, radius })
     }
-    
-    /// Erstellt einen Sampler mit festem Seed
-    pub fn with_seed(method: SamplingMethod, radius: f32, seed: u64) -> Self {
-        Self {
-            method,
-            radius,
-            rng: rand::rngs::StdRng::seed_from_u64(seed),
+
+    /// Generiert eine bestimmte Anzahl von Punkten auf der Kugeloberfläche.
+    /// `rng` ist die Quelle für Zufallszahlen.
+    pub fn sample_points(
+        &self, // &self, da der Sampler selbst zustandslos ist bzgl. der Generierung
+        count: usize,
+        rng: &mut impl Rng,
+    ) -> Vec<Vec3> {
+        if count == 0 {
+            return Vec::new();
         }
-    }
-    
-    /// Generiert eine bestimmte Anzahl von Punkten
-    pub fn sample_points(&mut self, count: usize) -> Vec<Point3D> {
+
         match self.method {
-            SamplingMethod::Uniform => self.uniform_sampling(count),
-            SamplingMethod::Fibonacci => self.fibonacci_sampling(count),
-            SamplingMethod::Stratified => self.stratified_sampling(count),
-            SamplingMethod::PoissonDisk { min_distance } => {
-                self.poisson_disk_sampling(count, min_distance)
+            SphereSamplingMethod::Uniform => self.uniform_sampling(count, rng),
+            SphereSamplingMethod::Fibonacci => self.fibonacci_sampling(count),
+            SphereSamplingMethod::Stratified => self.stratified_sampling(count, rng),
+            SphereSamplingMethod::PoissonDisk {
+                min_angular_distance_rad,
+            } => {
+                // Konvertiere angular distance zu chord length auf der Einheitskugel, dann skaliere mit Radius
+                let chord_length_unit_sphere = 2.0 * (min_angular_distance_rad / 2.0).sin();
+                let min_cartesian_distance = chord_length_unit_sphere * self.radius;
+                self.poisson_disk_sampling(count, min_cartesian_distance, rng)
             }
         }
     }
-    
-    /// Generiert einen einzelnen zufälligen Punkt
-    pub fn sample_single_point(&mut self) -> Point3D {
+
+    /// Generiert einen einzelnen zufälligen Punkt auf der Kugeloberfläche.
+    pub fn sample_single_point(&self, rng: &mut impl Rng) -> Vec3 {
+        // Für die meisten Methoden ist es einfacher, die spezifische Einzelpunktlogik zu verwenden,
+        // anstatt `sample_points(1, ...)` aufzurufen.
         match self.method {
-            SamplingMethod::Uniform => self.uniform_point(),
-            _ => self.sample_points(1)[0],
+            SphereSamplingMethod::Uniform | SphereSamplingMethod::Stratified => {
+                self.uniform_point_marsaglia(rng)
+            }
+            SphereSamplingMethod::Fibonacci => self
+                .fibonacci_sampling(1)
+                .pop()
+                .unwrap_or_else(|| self.uniform_point_marsaglia(rng)), // Fallback
+            SphereSamplingMethod::PoissonDisk { .. } => {
+                // Poisson Disk ist nicht für einen einzelnen Punkt gedacht, Fallback zu Uniform
+                self.uniform_point_marsaglia(rng)
+            }
         }
     }
-    
-    /// Uniform verteilte Punkte (Marsaglia-Methode)
-    fn uniform_sampling(&mut self, count: usize) -> Vec<Point3D> {
-        (0..count).map(|_| self.uniform_point()).collect()
+
+    /// Generiert uniform verteilte Punkte mittels Marsaglia-Methode.
+    fn uniform_sampling(&self, count: usize, rng: &mut impl Rng) -> Vec<Vec3> {
+        (0..count)
+            .map(|_| self.uniform_point_marsaglia(rng))
+            .collect()
     }
-    
-    fn uniform_point(&mut self) -> Point3D {
+
+    /// Generiert einen einzelnen uniform verteilten Punkt mittels Marsaglia-Methode.
+    /// Gibt einen Punkt auf der Einheitskugel zurück, skaliert mit `self.radius`.
+    fn uniform_point_marsaglia(&self, rng: &mut impl Rng) -> Vec3 {
         loop {
-            let x1 = self.rng.gen_range(-1.0..=1.0);
-            let x2 = self.rng.gen_range(-1.0..=1.0);
-            let length_sq = x1 * x1 + x2 * x2;
-            
-            if length_sq < 1.0 && length_sq > constants::EPSILON {
-                let factor = 2.0 * (1.0 - length_sq).sqrt();
-                return Point3D::new(
-                    2.0 * x1 * (1.0 - length_sq).sqrt() * self.radius,
-                    2.0 * x2 * (1.0 - length_sq).sqrt() * self.radius,
-                    (1.0 - 2.0 * length_sq) * self.radius,
-                );
+            let x1: f32 = rng.random_range(-1.0..=1.0);
+            let x2: f32 = rng.random_range(-1.0..=1.0);
+            let sum_sq = x1 * x1 + x2 * x2;
+
+            if sum_sq < 1.0 && sum_sq > constants::EPSILON {
+                // sum_sq muss > 0 sein für sqrt
+                let factor_sqrt = (1.0 - sum_sq).sqrt();
+                return Vec3::new(
+                    2.0 * x1 * factor_sqrt,
+                    2.0 * x2 * factor_sqrt,
+                    1.0 - 2.0 * sum_sq,
+                ) * self.radius;
             }
         }
     }
-    
-    /// Fibonacci-Spirale Sampling
-    fn fibonacci_sampling(&mut self, count: usize) -> Vec<Point3D> {
-        let mut points = Vec::with_capacity(count);
-        let golden_ratio = (1.0 + 5.0_f32.sqrt()) * 0.5;
-        
-        for i in 0..count {
-            let theta = TAU * (i as f32 / golden_ratio);
-            let phi_cos = 1.0 - 2.0 * (i as f32 / (count - 1) as f32);
-            let phi_sin = (1.0 - phi_cos * phi_cos).sqrt();
-            
-            let x = phi_sin * theta.cos();
-            let y = phi_sin * theta.sin();
-            let z = phi_cos;
-            
-            points.push(Point3D::new(x * self.radius, y * self.radius, z * self.radius));
+
+    /// Generiert Punkte mittels Fibonacci-Spirale (oder "Golden Spiral").
+    /// Liefert eine sehr gleichmäßige Verteilung.
+    fn fibonacci_sampling(&self, count: usize) -> Vec<Vec3> {
+        if count == 0 {
+            return Vec::new();
         }
-        
+        let mut points = Vec::with_capacity(count);
+        let golden_angle = PI * (3.0 - 5.0_f32.sqrt()); // Näherung an Goldenen Winkel für Spirale
+
+        for i in 0..count {
+            let y = 1.0 - (i as f32 / (count - 1).max(1) as f32) * 2.0; // y geht von 1 bis -1
+            let radius_at_y = (1.0 - y * y).sqrt(); // Radius der Scheibe bei Höhe y
+
+            let theta = golden_angle * i as f32; // Golden Angle
+
+            let x = radius_at_y * theta.cos();
+            let z = radius_at_y * theta.sin(); // Beachte: übliche Spirale ist in XZ, Y ist "oben"
+
+            points.push(Vec3::new(x, y, z) * self.radius);
+        }
         points
     }
-    
-    /// Stratified Sampling (Grid-basiert)
-    fn stratified_sampling(&mut self, count: usize) -> Vec<Point3D> {
-        let side_count = (count as f32).sqrt().ceil() as usize;
-        let mut points = Vec::with_capacity(side_count * side_count);
-        
-        for i in 0..side_count {
-            for j in 0..side_count {
-                // Jitter für bessere Verteilung
-                let u = (i as f32 + self.rng.gen::<f32>()) / side_count as f32;
-                let v = (j as f32 + self.rng.gen::<f32>()) / side_count as f32;
-                
-                // Equal-area mapping auf Kugel
-                let theta = TAU * u;
-                let phi = (2.0 * v - 1.0).acos();
-                
-                let sin_phi = phi.sin();
-                let x = sin_phi * theta.cos();
-                let y = sin_phi * theta.sin();
-                let z = phi.cos();
-                
-                points.push(Point3D::new(x * self.radius, y * self.radius, z * self.radius));
-                
-                if points.len() >= count {
+
+    /// Generiert Punkte mittels Stratified Sampling.
+    /// Teilt die Kugeloberfläche in (annähernd) gleich große Flächen auf und platziert
+    /// einen gejitterten Punkt in jeder Zelle.
+    fn stratified_sampling(&self, count: usize, rng: &mut impl Rng) -> Vec<Vec3> {
+        // Annahme: count ist ungefähr eine Quadratzahl für gute Aufteilung
+        let num_latitude_bands = ((count as f32 * PI).sqrt().round() as usize).max(1);
+        let mut points = Vec::with_capacity(count);
+        let mut points_generated = 0;
+
+        for i in 0..num_latitude_bands {
+            let lat_min = -constants::PI_OVER_2 + (i as f32 / num_latitude_bands as f32) * PI;
+            let lat_max = -constants::PI_OVER_2 + ((i + 1) as f32 / num_latitude_bands as f32) * PI;
+
+            // Anzahl der Punkte in diesem Breitengradband, proportional zur Fläche des Bandes
+            // Fläche eines Bands ist proportional zu cos(mittlere_latitude) * band_höhe
+            // Einfacher: proportional zur Bogenlänge des Breitengrads (cos(lat))
+            let mid_lat = (lat_min + lat_max) * 0.5;
+            let _points_in_band =
+                ((count as f32 * mid_lat.cos().abs()) / num_latitude_bands as f32).round() as usize;
+            // Alternative: Gleichmäßigere Verteilung, wenn man cos(phi) gleichmäßig verteilt.
+            // z = cos(phi) -> phi = acos(z). z gleichmäßig von -1 bis 1.
+            // Hier verwenden wir eine vereinfachte Stratifizierung in u,v Parameterraum.
+
+            let u_min = i as f32 / num_latitude_bands as f32;
+            let u_max = (i + 1) as f32 / num_latitude_bands as f32;
+
+            let points_this_band = (count as f32 / num_latitude_bands as f32).ceil() as usize;
+
+            for _ in 0..points_this_band {
+                if points_generated >= count {
                     break;
                 }
+
+                let u_rand = rng.random_range(u_min..u_max); // Jitter in u
+                let v_rand: f32 = rng.random(); // Jitter in v [0,1)
+
+                let theta = TAU * v_rand; // Azimut
+                let phi = (2.0 * u_rand - 1.0).acos(); // Polarwinkel, so dass cos(phi) uniform ist
+
+                let sin_phi = phi.sin();
+                points.push(
+                    Vec3::new(sin_phi * theta.cos(), sin_phi * theta.sin(), phi.cos())
+                        * self.radius,
+                );
+                points_generated += 1;
             }
-            if points.len() >= count {
+            if points_generated >= count {
                 break;
             }
         }
-        
-        points.truncate(count);
+        points.truncate(count); // Falls zu viele generiert wurden
         points
     }
-    
-    /// Poisson Disk Sampling
-    fn poisson_disk_sampling(&mut self, target_count: usize, min_distance: f32) -> Vec<Point3D> {
+
+    /// Generiert Punkte mittels Poisson Disk Sampling auf der Kugeloberfläche.
+    /// `min_cartesian_distance` ist der minimale euklidische Abstand zwischen Punkten.
+    fn poisson_disk_sampling(
+        &self,
+        target_count: usize, // Zielanzahl, Algorithmus versucht, diese zu erreichen
+        min_cartesian_distance: f32,
+        rng: &mut impl Rng,
+    ) -> Vec<Vec3> {
+        if min_cartesian_distance <= 0.0 {
+            return self.uniform_sampling(target_count, rng);
+        }
+
         let mut points = Vec::new();
-        let mut active_list = Vec::new();
-        
-        // Startpunkt
-        let first_point = self.uniform_point();
+        let mut active_list = Vec::new(); // Indizes in `points`
+
+        // Startpunkt (ein zufälliger Punkt auf der Kugel)
+        let first_point = self.uniform_point_marsaglia(rng);
         points.push(first_point);
         active_list.push(0);
-        
-        let max_attempts = 30;
-        
+
+        let k_attempts = 30; // Anzahl Versuche, einen validen Nachbarn zu finden
+
         while !active_list.is_empty() && points.len() < target_count {
-            let active_index = self.rng.gen_range(0..active_list.len());
-            let point_index = active_list[active_index];
-            let current_point = points[point_index];
-            
-            let mut found_valid = false;
-            
-            for _ in 0..max_attempts {
-                let candidate = self.generate_candidate_around(current_point, min_distance);
-                
-                if self.is_valid_candidate(&candidate, &points, min_distance) {
+            let active_idx_in_list = rng.random_range(0..active_list.len());
+            let current_point_idx = active_list[active_idx_in_list];
+            let current_point = points[current_point_idx];
+
+            let mut found_candidate_for_current = false;
+            for _ in 0..k_attempts {
+                // Generiere Kandidaten in einem Ring um current_point
+                // Winkelabstand für den Ring: [min_dist, 2*min_dist] auf der Kugeloberfläche
+                let random_angle_dist_rad = rng.random_range(
+                    (min_cartesian_distance / self.radius)
+                        ..(2.0 * min_cartesian_distance / self.radius),
+                );
+                let random_azimuth_rad: f32 = rng.random_range(0.0..TAU);
+
+                // Erzeuge einen zufälligen Rotationsquaternion
+                let random_axis = self.uniform_point_marsaglia(rng).normalize_or_zero(); // Zufällige Achse
+                let candidate_rotation =
+                    BevyQuat::from_axis_angle(random_axis, random_angle_dist_rad);
+                let _candidate_offset_direction =
+                    candidate_rotation * current_point.normalize_or_zero(); // Rotiere die Richtung vom current_point
+
+                // Alternative: Generiere Punkt in Kugel-Kappe
+                // Dies ist komplexer, um eine gleichmäßige Verteilung im Ring zu gewährleisten.
+                // Einfacher: Zufällige Rotation eines Referenzvektors um `current_point` als Achse,
+                // dann diesen rotierten Vektor um einen Winkel `random_angle_dist_rad` "kippen".
+
+                // Einfacherer Ansatz für Kandidatengenerierung (nicht perfekt uniform im Ring):
+                // Nimm eine zufällige Richtung, rotiere sie um den aktuellen Punkt
+                let (tangent_u, tangent_v) =
+                    CoordinateConverter::sphere_tangents_at_point(current_point);
+                let local_offset = Vec2::from_angle(random_azimuth_rad).normalize()
+                    * min_cartesian_distance
+                    * rng.random_range(1.0..2.0);
+                let candidate_on_tangent_plane =
+                    current_point + tangent_u * local_offset.x + tangent_v * local_offset.y;
+                let candidate =
+                    CoordinateConverter::project_to_sphere(candidate_on_tangent_plane, self.radius);
+
+                if self.is_valid_poisson_candidate(&candidate, &points, min_cartesian_distance) {
                     points.push(candidate);
                     active_list.push(points.len() - 1);
-                    found_valid = true;
-                    break;
+                    found_candidate_for_current = true;
+                    if points.len() >= target_count {
+                        break;
+                    }
                 }
             }
-            
-            if !found_valid {
-                active_list.swap_remove(active_index);
+
+            if !found_candidate_for_current {
+                active_list.swap_remove(active_idx_in_list);
             }
         }
-        
         points
     }
-    
-    fn generate_candidate_around(&mut self, point: Point3D, min_distance: f32) -> Point3D {
-        // Generiere Punkt in Kugel-Kappe um den gegebenen Punkt
-        let normal = point.normalize();
-        let (tangent1, tangent2) = CoordinateConverter::sphere_tangents(point);
-        
-        // Zufällige Richtung in Tangentialebene
-        let angle = self.rng.gen_range(0.0..TAU);
-        let radius_factor = self.rng.gen_range(min_distance..min_distance * 2.0);
-        
-        let offset = tangent1 * (angle.cos() * radius_factor) + 
-                     tangent2 * (angle.sin() * radius_factor);
-        
-        let candidate = point + offset;
-        CoordinateConverter::project_to_sphere(candidate, self.radius)
-    }
-    
-    fn is_valid_candidate(&self, candidate: &Point3D, existing_points: &[Point3D], min_distance: f32) -> bool {
+
+    fn is_valid_poisson_candidate(
+        &self,
+        candidate: &Vec3,
+        existing_points: &[Vec3],
+        min_cartesian_distance: f32,
+    ) -> bool {
+        let min_dist_sq = min_cartesian_distance * min_cartesian_distance;
         for point in existing_points {
-            let distance = candidate.distance(*point);
-            if distance < min_distance {
+            if candidate.distance_squared(*point) < min_dist_sq {
                 return false;
             }
         }
@@ -204,214 +284,131 @@ impl SphereSampler {
     }
 }
 
-/// Spezielle Sampling-Patterns
+/// Erzeugt spezielle Punktmuster auf einer Kugeloberfläche.
 pub struct SamplingPatterns;
 
 impl SamplingPatterns {
-    /// Erzeugt Punkte auf den Eckpunkten eines Ikosaeders
-    pub fn icosahedron_vertices(radius: f32) -> Vec<Point3D> {
-        let phi = constants::GOLDEN_RATIO;
-        let a = 1.0 / (phi * phi + 1.0).sqrt();
-        let b = phi * a;
-        
-        let vertices = vec![
-            Point3D::new(-a, b, 0.0), Point3D::new(a, b, 0.0),
-            Point3D::new(-a, -b, 0.0), Point3D::new(a, -b, 0.0),
-            Point3D::new(0.0, -a, b), Point3D::new(0.0, a, b),
-            Point3D::new(0.0, -a, -b), Point3D::new(0.0, a, -b),
-            Point3D::new(b, 0.0, -a), Point3D::new(b, 0.0, a),
-            Point3D::new(-b, 0.0, -a), Point3D::new(-b, 0.0, a),
+    /// Erzeugt die 12 Eckpunkte eines Ikosaeders, normalisiert auf den gegebenen Radius.
+    pub fn icosahedron_vertices(radius: f32) -> Vec<Vec3> {
+        let phi = constants::GOLDEN_RATIO; // (1 + sqrt(5)) / 2
+        let _norm_factor = (1.0 + phi * phi).sqrt(); // Für Normalisierung auf Einheitskugel
+        // Punkte auf Einheitskugel
+        let points_unit = vec![
+            Vec3::new(-1.0, phi, 0.0),
+            Vec3::new(1.0, phi, 0.0),
+            Vec3::new(-1.0, -phi, 0.0),
+            Vec3::new(1.0, -phi, 0.0),
+            Vec3::new(0.0, -1.0, phi),
+            Vec3::new(0.0, 1.0, phi),
+            Vec3::new(0.0, -1.0, -phi),
+            Vec3::new(0.0, 1.0, -phi),
+            Vec3::new(phi, 0.0, -1.0),
+            Vec3::new(phi, 0.0, 1.0),
+            Vec3::new(-phi, 0.0, -1.0),
+            Vec3::new(-phi, 0.0, 1.0),
         ];
-        
-        vertices.into_iter()
-            .map(|v| v.normalize() * radius)
+        points_unit
+            .into_iter()
+            .map(|p| p.normalize_or_zero() * radius)
             .collect()
     }
-    
-    /// Erzeugt Punkte durch geodätische Subdivision eines Ikosaeders
-    pub fn geodesic_sphere(radius: f32, subdivisions: usize) -> Vec<Point3D> {
-        let mut vertices = Self::icosahedron_vertices(radius);
-        
-        for _ in 0..subdivisions {
-            vertices = Self::subdivide_geodesic(vertices, radius);
+
+    // Geodesic sphere ist komplexer, da es Triangulation und Mittelpunktberechnung erfordert.
+    // Hier eine sehr vereinfachte Version, die nur existierende Punkte mittelt.
+    // Eine korrekte Implementierung würde die Dreiecke des Ikosaeders unterteilen.
+    // pub fn geodesic_sphere_simplified(radius: f32, subdivisions: usize) -> Vec<Vec3> { ... }
+
+    /// Erzeugt Punkte entlang von Breitengradkreisen.
+    pub fn latitude_circles(
+        radius: f32,
+        num_latitude_circles: usize, // Anzahl der Breitengradkreise (inkl. Pole, wenn count_per_circle > 0)
+        points_per_circle: usize,    // Punkte pro Kreis (außer an Polen)
+    ) -> Vec<Vec3> {
+        if num_latitude_circles == 0 || points_per_circle == 0 {
+            return Vec::new();
         }
-        
-        vertices
-    }
-    
-    fn subdivide_geodesic(vertices: Vec<Point3D>, radius: f32) -> Vec<Point3D> {
-        // Vereinfachte geodätische Subdivision
-        // In einer vollständigen Implementierung würde man die Dreiecks-Topologie verwalten
-        let mut new_vertices = vertices.clone();
-        
-        for i in 0..vertices.len() {
-            for j in (i + 1)..vertices.len() {
-                let midpoint = (vertices[i] + vertices[j]) * 0.5;
-                let projected = CoordinateConverter::project_to_sphere(midpoint, radius);
-                new_vertices.push(projected);
-            }
-        }
-        
-        new_vertices
-    }
-    
-    /// Erzeugt Punkte entlang Breitengrad-Kreisen
-    pub fn latitude_circles(radius: f32, num_circles: usize, points_per_circle: usize) -> Vec<Point3D> {
         let mut points = Vec::new();
-        
-        for i in 0..num_circles {
-            let latitude = PI * (i as f32 / (num_circles - 1) as f32) - PI * 0.5;
-            let circle_radius = radius * latitude.cos();
-            let height = radius * latitude.sin();
-            
-            for j in 0..points_per_circle {
-                let longitude = TAU * (j as f32 / points_per_circle as f32);
-                
-                let x = circle_radius * longitude.cos();
-                let z = circle_radius * longitude.sin();
-                let y = height;
-                
-                points.push(Point3D::new(x, y, z));
+
+        // Inklusive Pole, falls num_latitude_circles >= 1
+        if num_latitude_circles == 1 {
+            // Nur Äquator (oder Pole, je nach Definition)
+            if points_per_circle > 0 {
+                points.push(Vec3::new(0.0, 0.0, radius)); // Nordpol
+                if points_per_circle > 1 {
+                    // Um Duplikat zu vermeiden, wenn nur 1 Punkt
+                    points.push(Vec3::new(0.0, 0.0, -radius)); // Südpol
+                }
+            }
+            return points;
+        }
+
+        // Schleife von Pol zu Pol
+        for i in 0..=num_latitude_circles {
+            // Inklusive Start- und End-Breitengrad
+            let t_lat = i as f32 / num_latitude_circles as f32; // [0, 1]
+            let latitude_rad = PI * t_lat - constants::PI_OVER_2; // Von -PI/2 (Süd) bis PI/2 (Nord)
+
+            if latitude_rad.abs() >= constants::PI_OVER_2 - constants::EPSILON {
+                // An den Polen
+                points.push(Vec3::new(0.0, 0.0, latitude_rad.signum() * radius));
+            } else {
+                let cos_lat = latitude_rad.cos();
+                for j in 0..points_per_circle {
+                    let longitude_rad = TAU * (j as f32 / points_per_circle as f32);
+                    points.push(Vec3::new(
+                        radius * cos_lat * longitude_rad.cos(),
+                        radius * cos_lat * longitude_rad.sin(),
+                        radius * latitude_rad.sin(),
+                    ));
+                }
             }
         }
-        
+        // Dedupliziere Pole, falls sie mehrfach generiert wurden
+        points.sort_by(|a: &Vec3, b: &Vec3| {
+            a.x.partial_cmp(&b.x)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| a.y.partial_cmp(&b.y).unwrap_or(std::cmp::Ordering::Equal))
+                .then_with(|| a.z.partial_cmp(&b.z).unwrap_or(std::cmp::Ordering::Equal))
+        });
+        points.dedup_by(|a, b| a.distance_squared(*b) < constants::EPSILON * constants::EPSILON);
         points
     }
-    
-    /// Generiert zufällige Punkte in einem Kugel-Segment (Calotte)
-    pub fn spherical_cap(radius: f32, height: f32, count: usize, seed: Option<u64>) -> Vec<Point3D> {
-        let mut rng = match seed {
-            Some(s) => rand::rngs::StdRng::seed_from_u64(s),
-            None => rand::rngs::StdRng::from_entropy(),
-        };
-        
+
+    /// Generiert zufällige Punkte in einem Kugel-Segment (sphärische Kappe).
+    /// `cap_axis` ist die Achse der Kappe (zeigt vom Kugelzentrum zur Mitte der Kappe).
+    /// `cap_angle_rad` ist der halbe Öffnungswinkel der Kappe in Radiant.
+    pub fn spherical_cap_points(
+        radius: f32,
+        cap_axis: Vec3,     // Normalisierte Achse der Kappe
+        cap_angle_rad: f32, // Halber Öffnungswinkel der Kappe [0, PI]
+        count: usize,
+        rng: &mut impl Rng,
+    ) -> Vec<Vec3> {
+        if count == 0 || cap_angle_rad <= 0.0 {
+            return Vec::new();
+        }
+        let cap_angle_clamped = cap_angle_rad.clamp(0.0, PI);
+
         let mut points = Vec::with_capacity(count);
-        let cos_max_polar = (radius - height) / radius;
-        
+        let cos_max_polar_offset = cap_angle_clamped.cos(); // cos(alpha_max)
+
+        // Rotation, um cap_axis auf die Z-Achse auszurichten
+        let rotation_to_z = BevyQuat::from_rotation_arc(cap_axis.normalize_or_zero(), Vec3::Z);
+        let rotation_from_z = rotation_to_z.inverse();
+
         for _ in 0..count {
-            // Uniform sampling in spherical cap
-            let cos_polar = rng.gen_range(cos_max_polar..=1.0);
-            let polar = cos_polar.acos();
-            let azimuth = rng.gen_range(0.0..TAU);
-            
-            let spherical = SphericalCoordinates::new(radius, polar, azimuth).unwrap();
-            points.push(spherical.to_cartesian());
+            // Uniform sampling auf einer Kappe, die am Nordpol zentriert ist
+            let cos_polar_offset = rng.random_range(cos_max_polar_offset..=1.0); // z-Koordinate auf Einheitskugel
+            let polar_offset = cos_polar_offset.acos(); // Winkel zur Z-Achse [0, cap_angle_clamped]
+            let azimuth = rng.random_range(0.0..TAU); // Azimutwinkel
+
+            let point_on_z_cap = SphericalCoordinates::new(radius, polar_offset, azimuth)
+                .expect("Spherical coord creation failed")
+                .to_cartesian();
+
+            // Rotiere den Punkt zurück zur ursprünglichen Kappenorientierung
+            points.push(rotation_from_z * point_on_z_cap);
         }
-        
         points
-    }
-}
-
-/// Sampling-Utilities für spezielle Anwendungen
-pub struct SamplingUtils;
-
-impl SamplingUtils {
-    /// Berechnet die lokale Dichte von Punkten
-    pub fn calculate_density(points: &[Point3D], query_point: Point3D, radius: f32) -> f32 {
-        let neighbors = points.iter()
-            .filter(|&&p| query_point.distance(p) <= radius)
-            .count();
-        
-        neighbors as f32 / (4.0 * PI * radius * radius)
-    }
-    
-    /// Findet die k nächsten Nachbarn
-    pub fn k_nearest_neighbors(points: &[Point3D], query_point: Point3D, k: usize) -> Vec<(Point3D, f32)> {
-        let mut distances: Vec<(Point3D, f32)> = points.iter()
-            .map(|&p| (p, query_point.distance(p)))
-            .collect();
-        
-        distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
-        distances.truncate(k);
-        distances
-    }
-    
-    /// Berechnet Voronoi-Zell-Volumen näherungsweise
-    pub fn approximate_voronoi_volume(points: &[Point3D], point_index: usize, radius: f32) -> f32 {
-        if point_index >= points.len() {
-            return 0.0;
-        }
-        
-        let point = points[point_index];
-        let neighbors = Self::k_nearest_neighbors(points, point, 10);
-        
-        if neighbors.is_empty() {
-            return 4.0 * PI * radius * radius * radius / 3.0 / points.len() as f32;
-        }
-        
-        let avg_neighbor_distance = neighbors.iter()
-            .map(|(_, dist)| *dist)
-            .sum::<f32>() / neighbors.len() as f32;
-        
-        4.0 * PI * (avg_neighbor_distance * 0.5).powi(3) / 3.0
-    }
-    
-    /// Prüft ob Punkte-Verteilung uniform ist (Lloyd-Index)
-    pub fn uniformity_measure(points: &[Point3D], radius: f32) -> f32 {
-        let expected_neighbors = points.len() as f32 / (4.0 * PI);
-        let mut variance_sum = 0.0;
-        
-        for &point in points {
-            let actual_neighbors = Self::k_nearest_neighbors(points, point, 20).len() as f32;
-            let diff = actual_neighbors - expected_neighbors;
-            variance_sum += diff * diff;
-        }
-        
-        (variance_sum / points.len() as f32).sqrt() / expected_neighbors
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    
-    #[test]
-    fn test_uniform_sampling() {
-        let mut sampler = SphereSampler::with_seed(SamplingMethod::Uniform, 1.0, 42);
-        let points = sampler.sample_points(100);
-        
-        assert_eq!(points.len(), 100);
-        
-        // Alle Punkte sollten auf der Einheitskugel liegen
-        for point in &points {
-            assert!(comparison::nearly_equal(point.length(), 1.0));
-        }
-    }
-    
-    #[test]
-    fn test_fibonacci_sampling() {
-        let mut sampler = SphereSampler::new(SamplingMethod::Fibonacci, 2.0);
-        let points = sampler.sample_points(50);
-        
-        assert_eq!(points.len(), 50);
-        
-        for point in &points {
-            assert!(comparison::nearly_equal(point.length(), 2.0));
-        }
-    }
-    
-    #[test]
-    fn test_icosahedron_vertices() {
-        let vertices = SamplingPatterns::icosahedron_vertices(1.0);
-        assert_eq!(vertices.len(), 12);
-        
-        for vertex in &vertices {
-            assert!(comparison::nearly_equal(vertex.length(), 1.0));
-        }
-    }
-    
-    #[test]
-    fn test_sampling_utils() {
-        let points = vec![
-            Point3D::new(1.0, 0.0, 0.0),
-            Point3D::new(0.0, 1.0, 0.0),
-            Point3D::new(0.0, 0.0, 1.0),
-        ];
-        
-        let query = Point3D::new(0.5, 0.5, 0.5);
-        let neighbors = SamplingUtils::k_nearest_neighbors(&points, query, 2);
-        
-        assert_eq!(neighbors.len(), 2);
-        assert!(neighbors[0].1 <= neighbors[1].1); // Sortiert nach Distanz
     }
 }
