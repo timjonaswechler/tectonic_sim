@@ -29,7 +29,7 @@ pub use self::transformations::{
     },
     projection::{
         Complex as ProjectionComplex, ConformalType, Polygon2DProjector, Polygon3DProjector,
-        Projection2DType, ProjectionBatch, ProjectionEffects as PolygonProjectionEffects,
+        PolygonProjection2DType, ProjectionBatch, ProjectionEffects as PolygonProjectionEffects,
     }, // Umbenannt
 };
 
@@ -43,7 +43,9 @@ pub use self::operations::{
         ClippingAlgorithm, ClippingAnalysis, ClippingOperations, ClippingStats, PolygonClipper,
     },
     convex_hull::{ConvexHullAlgorithm, ConvexHullComputer, ConvexityDefect, ConvexityUtils},
-    triangulation::{PolygonTriangulator, Triangle, TriangulationAlgorithm, TriangulationUtils},
+    triangulation::{
+        PolygonTriangle, PolygonTriangulator, TriangulationAlgorithm, TriangulationUtils,
+    },
 };
 
 // --- Builders ---

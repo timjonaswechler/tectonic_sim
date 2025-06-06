@@ -6,7 +6,7 @@ use bevy::math::{Vec2, Vec3};
 use std::f32::consts::PI;
 /// 2D zu 2D Projektionstypen
 #[derive(Debug, Clone, Copy)]
-pub enum Projection2DType {
+pub enum PolygonProjection2DType {
     /// Orthogonale Projektion auf eine Linie
     OrthogonalLine { line_start: Vec2, line_end: Vec2 },
     /// Perspektivische Projektion von einem Punkt
@@ -110,13 +110,13 @@ impl Complex {
 
 /// 2D Projektions-Engine
 pub struct Polygon2DProjector {
-    projection_type: Projection2DType,
+    projection_type: PolygonProjection2DType,
     output_bounds: Option<Bounds2D>,
 }
 
 impl Polygon2DProjector {
     /// Erstellt einen neuen 2D Projektor
-    pub fn new(projection_type: Projection2DType) -> Self {
+    pub fn new(projection_type: PolygonProjection2DType) -> Self {
         Self {
             projection_type,
             output_bounds: None,
@@ -163,21 +163,21 @@ impl Polygon2DProjector {
     /// Projiziert einen einzelnen Punkt
     pub fn project_point(&self, point: Vec2) -> MathResult<Vec2> {
         match self.projection_type {
-            Projection2DType::OrthogonalLine {
+            PolygonProjection2DType::OrthogonalLine {
                 line_start,
                 line_end,
             } => Ok(self.orthogonal_line_projection(point, line_start, line_end)),
-            Projection2DType::Perspective { center, distance } => {
+            PolygonProjection2DType::Perspective { center, distance } => {
                 self.perspective_projection(point, center, distance)
             }
-            Projection2DType::CircularProjection { center, radius } => {
+            PolygonProjection2DType::CircularProjection { center, radius } => {
                 Ok(self.circular_projection(point, center, radius))
             }
-            Projection2DType::LogSpiral {
+            PolygonProjection2DType::LogSpiral {
                 center,
                 growth_factor,
             } => Ok(self.log_spiral_projection(point, center, growth_factor)),
-            Projection2DType::Conformal { transform_type } => {
+            PolygonProjection2DType::Conformal { transform_type } => {
                 self.conformal_projection(point, transform_type)
             }
         }
@@ -348,7 +348,7 @@ impl ProjectionBatch {
         // Wähle Projektion basierend auf Eigenschaften
         let projection_type = if area < 100.0 {
             // Kleine Polygone: Perspektivische Projektion
-            Projection2DType::Perspective {
+            PolygonProjection2DType::Perspective {
                 center: polygon.centroid().unwrap_or(Vec2::ZERO),
                 distance: 50.0,
             }
@@ -356,19 +356,19 @@ impl ProjectionBatch {
             // Langgestreckte Polygone: Lineare Projektion
             if let Some(bounds) = polygon.bounds() {
                 let center = (bounds.min + bounds.max) * 0.5;
-                Projection2DType::OrthogonalLine {
+                PolygonProjection2DType::OrthogonalLine {
                     line_start: Vec2::new(bounds.min.x, center.y),
                     line_end: Vec2::new(bounds.max.x, center.y),
                 }
             } else {
-                Projection2DType::Perspective {
+                PolygonProjection2DType::Perspective {
                     center: Vec2::ZERO,
                     distance: 100.0,
                 }
             }
         } else {
             // Standard-Polygone: Kreisprojektion
-            Projection2DType::CircularProjection {
+            PolygonProjection2DType::CircularProjection {
                 center: polygon.centroid().unwrap_or(Vec2::ZERO),
                 radius: (area / PI).sqrt(),
             }
@@ -384,7 +384,7 @@ impl ProjectionBatch {
         let mut results = Vec::with_capacity(scales.len());
 
         for &scale in scales {
-            let projection_type = Projection2DType::Perspective {
+            let projection_type = PolygonProjection2DType::Perspective {
                 center,
                 distance: 100.0 * scale,
             };
@@ -506,7 +506,7 @@ mod tests {
         ])
         .unwrap();
 
-        let projector = Polygon2DProjector::new(Projection2DType::OrthogonalLine {
+        let projector = Polygon2DProjector::new(PolygonProjection2DType::OrthogonalLine {
             line_start: Vec2::new(0.0, 0.0),
             line_end: Vec2::new(1.0, 0.0),
         });
@@ -528,7 +528,7 @@ mod tests {
         ])
         .unwrap();
 
-        let projector = Polygon2DProjector::new(Projection2DType::CircularProjection {
+        let projector = Polygon2DProjector::new(PolygonProjection2DType::CircularProjection {
             center: Vec2::ZERO,
             radius: 2.0,
         });
@@ -552,7 +552,7 @@ mod tests {
         ])
         .unwrap();
 
-        let projector = Polygon2DProjector::new(Projection2DType::Conformal {
+        let projector = Polygon2DProjector::new(PolygonProjection2DType::Conformal {
             transform_type: ConformalType::Joukowsky,
         });
 

@@ -19,13 +19,13 @@ pub enum TriangulationAlgorithm {
 
 /// Triangle representation
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Triangle {
+pub struct PolygonTriangle {
     pub a: Vec2,
     pub b: Vec2,
     pub c: Vec2,
 }
 
-impl Triangle {
+impl PolygonTriangle {
     pub fn new(a: Vec2, b: Vec2, c: Vec2) -> Self {
         Self { a, b, c }
     }
@@ -113,7 +113,7 @@ impl PolygonTriangulator {
     }
 
     /// Trianguliert ein Polygon
-    pub fn triangulate(&self, polygon: &Polygon) -> MathResult<Vec<Triangle>> {
+    pub fn triangulate(&self, polygon: &Polygon) -> MathResult<Vec<PolygonTriangle>> {
         let vertices = polygon.vertices();
 
         if vertices.len() < 3 {
@@ -150,7 +150,7 @@ impl PolygonTriangulator {
     // === Algorithmus-Implementierungen ===
 
     /// Ear Clipping Algorithmus
-    fn ear_clipping(&self, vertices: &[Vec2]) -> MathResult<Vec<Triangle>> {
+    fn ear_clipping(&self, vertices: &[Vec2]) -> MathResult<Vec<PolygonTriangle>> {
         let mut triangles = Vec::new();
         let mut remaining_vertices = vertices.to_vec();
 
@@ -165,7 +165,7 @@ impl PolygonTriangulator {
 
                 if self.is_ear(prev, curr, next, &remaining_vertices) {
                     // Erstelle Dreieck
-                    triangles.push(Triangle::new(prev, curr, next));
+                    triangles.push(PolygonTriangle::new(prev, curr, next));
 
                     // Entferne den Ear-Vertex
                     remaining_vertices.remove(i);
@@ -183,7 +183,7 @@ impl PolygonTriangulator {
 
         // Letztes Dreieck
         if remaining_vertices.len() == 3 {
-            triangles.push(Triangle::new(
+            triangles.push(PolygonTriangle::new(
                 remaining_vertices[0],
                 remaining_vertices[1],
                 remaining_vertices[2],
@@ -202,7 +202,7 @@ impl PolygonTriangulator {
         }
 
         // 2. Prüfe ob andere Vertices im Dreieck liegen
-        let triangle = Triangle::new(prev, curr, next);
+        let triangle = PolygonTriangle::new(prev, curr, next);
 
         for &vertex in vertices {
             if vertex == prev || vertex == curr || vertex == next {
@@ -218,7 +218,7 @@ impl PolygonTriangulator {
     }
 
     /// Fan Triangulation (für konvexe Polygone)
-    fn fan_triangulation(&self, vertices: &[Vec2]) -> MathResult<Vec<Triangle>> {
+    fn fan_triangulation(&self, vertices: &[Vec2]) -> MathResult<Vec<PolygonTriangle>> {
         if vertices.len() < 3 {
             return Err(MathError::InsufficientPoints {
                 expected: 3,
@@ -230,14 +230,18 @@ impl PolygonTriangulator {
         let first_vertex = vertices[0];
 
         for i in 1..(vertices.len() - 1) {
-            triangles.push(Triangle::new(first_vertex, vertices[i], vertices[i + 1]));
+            triangles.push(PolygonTriangle::new(
+                first_vertex,
+                vertices[i],
+                vertices[i + 1],
+            ));
         }
 
         Ok(triangles)
     }
 
     /// Vereinfachte Delaunay Triangulation
-    fn delaunay_triangulation(&self, vertices: &[Vec2]) -> MathResult<Vec<Triangle>> {
+    fn delaunay_triangulation(&self, vertices: &[Vec2]) -> MathResult<Vec<PolygonTriangle>> {
         if vertices.len() < 3 {
             return Err(MathError::InsufficientPoints {
                 expected: 3,
@@ -325,7 +329,7 @@ impl PolygonTriangulator {
 
             // Erstelle neue Dreiecke
             for edge in unique_edges {
-                triangles.push(Triangle::new(edge.0, edge.1, point));
+                triangles.push(PolygonTriangle::new(edge.0, edge.1, point));
             }
         }
 
@@ -354,13 +358,13 @@ impl PolygonTriangulator {
         (min, max)
     }
 
-    fn create_super_triangle(&self, bounds: (Vec2, Vec2)) -> Triangle {
+    fn create_super_triangle(&self, bounds: (Vec2, Vec2)) -> PolygonTriangle {
         let (min, max) = bounds;
         let width = max.x - min.x;
         let height = max.y - min.y;
         let margin = (width + height) * 2.0;
 
-        Triangle::new(
+        PolygonTriangle::new(
             Vec2::new(min.x - margin, min.y - margin),
             Vec2::new(max.x + margin, min.y - margin),
             Vec2::new((min.x + max.x) * 0.5, max.y + margin),
@@ -373,19 +377,19 @@ pub struct TriangulationUtils;
 
 impl TriangulationUtils {
     /// Berechnet die Gesamtfläche einer Triangulation
-    pub fn total_area(triangles: &[Triangle]) -> f32 {
+    pub fn total_area(triangles: &[PolygonTriangle]) -> f32 {
         triangles.iter().map(|t| t.area()).sum()
     }
 
     /// Findet das Dreieck das einen Punkt enthält
-    pub fn find_containing_triangle(triangles: &[Triangle], point: Vec2) -> Option<usize> {
+    pub fn find_containing_triangle(triangles: &[PolygonTriangle], point: Vec2) -> Option<usize> {
         triangles
             .iter()
             .position(|triangle| triangle.contains_point(point))
     }
 
     /// Konvertiert Triangulation zu Index-basierter Repräsentation
-    pub fn to_indexed_triangulation(triangles: &[Triangle]) -> (Vec<Vec2>, Vec<[usize; 3]>) {
+    pub fn to_indexed_triangulation(triangles: &[PolygonTriangle]) -> (Vec<Vec2>, Vec<[usize; 3]>) {
         let mut vertices = Vec::new();
         let mut indices = Vec::new();
         let mut vertex_map = HashMap::new();
@@ -411,7 +415,7 @@ impl TriangulationUtils {
     }
 
     /// Erstellt Wireframe-Kanten aus Triangulation
-    pub fn extract_edges(triangles: &[Triangle]) -> Vec<(Vec2, Vec2)> {
+    pub fn extract_edges(triangles: &[PolygonTriangle]) -> Vec<(Vec2, Vec2)> {
         let mut edges = Vec::new();
 
         for triangle in triangles {
@@ -447,7 +451,7 @@ impl TriangulationUtils {
     }
 
     /// Validiert eine Triangulation
-    pub fn validate_triangulation(triangles: &[Triangle], original_area: f32) -> bool {
+    pub fn validate_triangulation(triangles: &[PolygonTriangle], original_area: f32) -> bool {
         let triangulation_area = Self::total_area(triangles);
         (triangulation_area - original_area).abs() < constants::EPSILON * 100.0
     }
@@ -460,7 +464,7 @@ mod tests {
 
     #[test]
     fn test_triangle_basic_operations() {
-        let triangle = Triangle::new(
+        let triangle = PolygonTriangle::new(
             Vec2::new(0.0, 0.0),
             Vec2::new(1.0, 0.0),
             Vec2::new(0.5, 1.0),
@@ -537,12 +541,12 @@ mod tests {
     #[test]
     fn test_triangulation_utilities() {
         let triangles = vec![
-            Triangle::new(
+            PolygonTriangle::new(
                 Vec2::new(0.0, 0.0),
                 Vec2::new(1.0, 0.0),
                 Vec2::new(0.5, 1.0),
             ),
-            Triangle::new(
+            PolygonTriangle::new(
                 Vec2::new(1.0, 0.0),
                 Vec2::new(2.0, 0.0),
                 Vec2::new(1.5, 1.0),
