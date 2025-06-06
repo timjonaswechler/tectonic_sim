@@ -1,7 +1,7 @@
 // src/math/geometry/polygon/operations/convex_hull.rs
-
 use super::super::Polygon;
-use crate::math::{error::*, types::*, utils::*};
+use crate::math::{error::*, utils::*};
+use bevy::math::Vec2;
 
 /// Verschiedene Algorithmen für die konvexe Hülle
 #[derive(Debug, Clone, Copy)]
@@ -46,7 +46,7 @@ impl ConvexHullComputer {
     }
 
     /// Berechnet die konvexe Hülle von Punkten
-    pub fn compute_hull(&self, points: &[Point2D]) -> MathResult<Polygon> {
+    pub fn compute_hull(&self, points: &[Vec2]) -> MathResult<Polygon> {
         if points.len() < 3 {
             return Err(MathError::InsufficientPoints {
                 expected: 3,
@@ -78,7 +78,7 @@ impl ConvexHullComputer {
     // === Algorithmus-Implementierungen ===
 
     /// Graham Scan Algorithmus
-    fn graham_scan(&self, points: &[Point2D]) -> MathResult<Vec<Point2D>> {
+    fn graham_scan(&self, points: &[Vec2]) -> MathResult<Vec<Vec2>> {
         let mut points = points.to_vec();
 
         // 1. Finde den Punkt mit der niedrigsten Y-Koordinate (bei Gleichstand: niedrigste X)
@@ -139,7 +139,7 @@ impl ConvexHullComputer {
     }
 
     /// Andrew's Monotone Chain Algorithmus
-    fn andrew_monotone(&self, points: &[Point2D]) -> MathResult<Vec<Point2D>> {
+    fn andrew_monotone(&self, points: &[Vec2]) -> MathResult<Vec<Vec2>> {
         let mut points = points.to_vec();
 
         // Sortiere Punkte lexikographisch (erst X, dann Y)
@@ -210,7 +210,7 @@ impl ConvexHullComputer {
     }
 
     /// Jarvis March (Gift Wrapping) Algorithmus
-    fn jarvis_march(&self, points: &[Point2D]) -> MathResult<Vec<Point2D>> {
+    fn jarvis_march(&self, points: &[Vec2]) -> MathResult<Vec<Vec2>> {
         if points.is_empty() {
             return Ok(Vec::new());
         }
@@ -278,7 +278,7 @@ impl ConvexHullComputer {
     }
 
     /// QuickHull Algorithmus
-    fn quickhull(&self, points: &[Point2D]) -> MathResult<Vec<Point2D>> {
+    fn quickhull(&self, points: &[Vec2]) -> MathResult<Vec<Vec2>> {
         if points.len() < 3 {
             return Ok(points.to_vec());
         }
@@ -336,13 +336,7 @@ impl ConvexHullComputer {
         Ok(hull)
     }
 
-    fn quickhull_recursive(
-        &self,
-        hull: &mut Vec<Point2D>,
-        points: &[Point2D],
-        p1: Point2D,
-        p2: Point2D,
-    ) {
+    fn quickhull_recursive(&self, hull: &mut Vec<Vec2>, points: &[Vec2], p1: Vec2, p2: Vec2) {
         if points.is_empty() {
             return;
         }
@@ -387,11 +381,11 @@ impl ConvexHullComputer {
 
     // === Hilfsfunktionen ===
 
-    fn cross_product(a: Point2D, b: Point2D, c: Point2D) -> f32 {
+    fn cross_product(a: Vec2, b: Vec2, c: Vec2) -> f32 {
         (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
     }
 
-    fn point_line_distance(point: Point2D, line_start: Point2D, line_end: Point2D) -> f32 {
+    fn point_line_distance(point: Vec2, line_start: Vec2, line_end: Vec2) -> f32 {
         let line_vec = line_end - line_start;
         let point_vec = point - line_start;
 
@@ -504,9 +498,9 @@ impl ConvexityUtils {
 #[derive(Debug, Clone)]
 pub struct ConvexityDefect {
     pub vertex_index: usize,
-    pub vertex: Point2D,
+    pub vertex: Vec2,
     pub distance_to_hull: f32,
-    pub closest_hull_edge: (Point2D, Point2D),
+    pub closest_hull_edge: (Vec2, Vec2),
 }
 
 #[cfg(test)]
@@ -517,11 +511,11 @@ mod tests {
     #[test]
     fn test_convex_hull_square() {
         let points = vec![
-            Point2D::new(0.0, 0.0),
-            Point2D::new(1.0, 0.0),
-            Point2D::new(1.0, 1.0),
-            Point2D::new(0.0, 1.0),
-            Point2D::new(0.5, 0.5), // Interior point
+            Vec2::new(0.0, 0.0),
+            Vec2::new(1.0, 0.0),
+            Vec2::new(1.0, 1.0),
+            Vec2::new(0.0, 1.0),
+            Vec2::new(0.5, 0.5), // Interior point
         ];
 
         let computer = ConvexHullComputer::new(ConvexHullAlgorithm::GrahamScan);
@@ -535,11 +529,11 @@ mod tests {
     #[test]
     fn test_all_algorithms_same_result() {
         let points = vec![
-            Point2D::new(0.0, 0.0),
-            Point2D::new(3.0, 1.0),
-            Point2D::new(2.0, 3.0),
-            Point2D::new(-1.0, 2.0),
-            Point2D::new(1.0, 1.0), // Interior
+            Vec2::new(0.0, 0.0),
+            Vec2::new(3.0, 1.0),
+            Vec2::new(2.0, 3.0),
+            Vec2::new(-1.0, 2.0),
+            Vec2::new(1.0, 1.0), // Interior
         ];
 
         let algorithms = [
@@ -568,9 +562,9 @@ mod tests {
     fn test_convexity_detection() {
         // Convex polygon
         let convex = Polygon::closed(vec![
-            Point2D::new(0.0, 0.0),
-            Point2D::new(2.0, 0.0),
-            Point2D::new(1.0, 2.0),
+            Vec2::new(0.0, 0.0),
+            Vec2::new(2.0, 0.0),
+            Vec2::new(1.0, 2.0),
         ])
         .unwrap();
 
@@ -578,11 +572,11 @@ mod tests {
 
         // Non-convex polygon (arrow shape)
         let non_convex = Polygon::closed(vec![
-            Point2D::new(0.0, 0.0),
-            Point2D::new(2.0, 1.0),
-            Point2D::new(1.0, 1.0),
-            Point2D::new(1.0, 2.0),
-            Point2D::new(0.0, 1.0),
+            Vec2::new(0.0, 0.0),
+            Vec2::new(2.0, 1.0),
+            Vec2::new(1.0, 1.0),
+            Vec2::new(1.0, 2.0),
+            Vec2::new(0.0, 1.0),
         ])
         .unwrap();
 
@@ -592,11 +586,11 @@ mod tests {
     #[test]
     fn test_convexity_defects() {
         let polygon = Polygon::closed(vec![
-            Point2D::new(0.0, 0.0),
-            Point2D::new(2.0, 0.0),
-            Point2D::new(2.0, 2.0),
-            Point2D::new(1.0, 1.0), // Creates a defect
-            Point2D::new(0.0, 2.0),
+            Vec2::new(0.0, 0.0),
+            Vec2::new(2.0, 0.0),
+            Vec2::new(2.0, 2.0),
+            Vec2::new(1.0, 1.0), // Creates a defect
+            Vec2::new(0.0, 2.0),
         ])
         .unwrap();
 

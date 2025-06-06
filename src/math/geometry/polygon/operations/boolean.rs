@@ -3,6 +3,7 @@
 use super::super::Polygon;
 use super::clipping::{ClippingAlgorithm, PolygonClipper};
 use crate::math::{error::*, types::*, utils::*};
+use bevy::math::Vec2;
 
 /// Boolean-Operationstypen
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -209,8 +210,8 @@ impl PolygonBoolean {
     fn polygons_overlap(&self, polygon_a: &Polygon, polygon_b: &Polygon) -> MathResult<bool> {
         // Prüfe Bounding Box Überschneidung
         if let (Some(bounds_a), Some(bounds_b)) = (polygon_a.bounds(), polygon_b.bounds()) {
-            let bounds_a = Bounds2D::from_points(bounds_a.0, bounds_a.1);
-            let bounds_b = Bounds2D::from_points(bounds_b.0, bounds_b.1);
+            let bounds_a = Bounds2D::from_points(bounds_a.min, bounds_a.max);
+            let bounds_b = Bounds2D::from_points(bounds_b.min, bounds_b.max);
 
             if !bounds_a.intersects(&bounds_b) {
                 return Ok(false);
@@ -235,12 +236,12 @@ impl PolygonBoolean {
         Ok(true)
     }
 
-    fn point_in_polygon(&self, point: Point2D, polygon: &Polygon) -> MathResult<bool> {
+    fn point_in_polygon(&self, point: Vec2, polygon: &Polygon) -> MathResult<bool> {
         use crate::math::geometry::polygon::PolygonProperties;
         Ok(polygon.contains_point(point))
     }
 
-    fn point_on_polygon_boundary(&self, point: Point2D, polygon: &Polygon) -> MathResult<bool> {
+    fn point_on_polygon_boundary(&self, point: Vec2, polygon: &Polygon) -> MathResult<bool> {
         let vertices = polygon.vertices();
 
         for i in 0..vertices.len() {
@@ -259,7 +260,7 @@ impl PolygonBoolean {
         Ok(false)
     }
 
-    fn point_line_distance(&self, point: Point2D, line_start: Point2D, line_end: Point2D) -> f32 {
+    fn point_line_distance(&self, point: Vec2, line_start: Vec2, line_end: Vec2) -> f32 {
         let line_vec = line_end - line_start;
         let point_vec = point - line_start;
 
@@ -272,12 +273,7 @@ impl PolygonBoolean {
         cross.abs() / line_length
     }
 
-    fn point_on_line_segment(
-        &self,
-        point: Point2D,
-        segment_start: Point2D,
-        segment_end: Point2D,
-    ) -> bool {
+    fn point_on_line_segment(&self, point: Vec2, segment_start: Vec2, segment_end: Vec2) -> bool {
         let segment_vec = segment_end - segment_start;
         let point_vec = point - segment_start;
 
@@ -296,7 +292,7 @@ impl PolygonBoolean {
         &self,
         polygon_a: &Polygon,
         polygon_b: &Polygon,
-    ) -> MathResult<Vec<Point2D>> {
+    ) -> MathResult<Vec<Vec2>> {
         let mut intersections = Vec::new();
 
         let vertices_a = polygon_a.vertices();
@@ -332,9 +328,9 @@ impl PolygonBoolean {
 
     fn line_segment_intersection(
         &self,
-        edge_a: (Point2D, Point2D),
-        edge_b: (Point2D, Point2D),
-    ) -> Option<Point2D> {
+        edge_a: (Vec2, Vec2),
+        edge_b: (Vec2, Vec2),
+    ) -> Option<Vec2> {
         let (p1, p2) = edge_a;
         let (p3, p4) = edge_b;
 
@@ -447,6 +443,18 @@ impl BooleanOperations {
     pub fn union_many(polygons: &[Polygon]) -> MathResult<Vec<Polygon>> {
         Self::batch_operation(polygons, BooleanOperation::Union)
     }
+}
+
+/// Statistiken für Boolean-Operationen
+#[derive(Debug)]
+pub struct BooleanStats {
+    pub operation: BooleanOperation,
+    pub input_area_a: f32,
+    pub input_area_b: f32,
+    pub result_area: f32,
+    pub expected_area: f32,
+    pub result_polygon_count: usize,
+    pub area_efficiency: f32,
 }
 
 /// Boolean-Statistiken und Analyse
@@ -569,7 +577,6 @@ impl BooleanAnalysis {
                     }
                 }
             }
-            _ => {}
         }
         // Weitere Validierungen können hier hinzugefügt werden
         issues

@@ -1,7 +1,7 @@
 // src/math/geometry/polygon/operations/triangulation.rs
-
 use super::super::Polygon;
-use crate::math::{error::*, types::*, utils::*};
+use crate::math::{error::*, utils::*};
+use bevy::math::Vec2;
 use std::collections::HashMap;
 
 /// Verschiedene Triangulations-Algorithmen
@@ -20,13 +20,13 @@ pub enum TriangulationAlgorithm {
 /// Triangle representation
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Triangle {
-    pub a: Point2D,
-    pub b: Point2D,
-    pub c: Point2D,
+    pub a: Vec2,
+    pub b: Vec2,
+    pub c: Vec2,
 }
 
 impl Triangle {
-    pub fn new(a: Point2D, b: Point2D, c: Point2D) -> Self {
+    pub fn new(a: Vec2, b: Vec2, c: Vec2) -> Self {
         Self { a, b, c }
     }
 
@@ -38,7 +38,7 @@ impl Triangle {
     }
 
     /// Berechnet den Umkreis-Mittelpunkt
-    pub fn circumcenter(&self) -> Option<Point2D> {
+    pub fn circumcenter(&self) -> Option<Vec2> {
         let ax = self.a.x;
         let ay = self.a.y;
         let bx = self.b.x;
@@ -61,11 +61,11 @@ impl Triangle {
             + (cx * cx + cy * cy) * (bx - ax))
             / d;
 
-        Some(Point2D::new(ux, uy))
+        Some(Vec2::new(ux, uy))
     }
 
     /// Prüft ob ein Punkt im Umkreis liegt
-    pub fn point_in_circumcircle(&self, point: Point2D) -> bool {
+    pub fn point_in_circumcircle(&self, point: Vec2) -> bool {
         if let Some(center) = self.circumcenter() {
             let radius_sq = center.distance_squared(self.a);
             center.distance_squared(point) < radius_sq
@@ -75,8 +75,8 @@ impl Triangle {
     }
 
     /// Prüft ob ein Punkt im Dreieck liegt
-    pub fn contains_point(&self, point: Point2D) -> bool {
-        let sign = |p1: Point2D, p2: Point2D, p3: Point2D| -> f32 {
+    pub fn contains_point(&self, point: Vec2) -> bool {
+        let sign = |p1: Vec2, p2: Vec2, p3: Vec2| -> f32 {
             (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y)
         };
 
@@ -150,7 +150,7 @@ impl PolygonTriangulator {
     // === Algorithmus-Implementierungen ===
 
     /// Ear Clipping Algorithmus
-    fn ear_clipping(&self, vertices: &[Point2D]) -> MathResult<Vec<Triangle>> {
+    fn ear_clipping(&self, vertices: &[Vec2]) -> MathResult<Vec<Triangle>> {
         let mut triangles = Vec::new();
         let mut remaining_vertices = vertices.to_vec();
 
@@ -194,7 +194,7 @@ impl PolygonTriangulator {
     }
 
     /// Prüft ob drei aufeinanderfolgende Vertices ein "Ear" bilden
-    fn is_ear(&self, prev: Point2D, curr: Point2D, next: Point2D, vertices: &[Point2D]) -> bool {
+    fn is_ear(&self, prev: Vec2, curr: Vec2, next: Vec2, vertices: &[Vec2]) -> bool {
         // 1. Prüfe ob das Dreieck konvex ist (Links-Kurve)
         let cross = (curr.x - prev.x) * (next.y - prev.y) - (curr.y - prev.y) * (next.x - prev.x);
         if cross <= 0.0 {
@@ -218,7 +218,7 @@ impl PolygonTriangulator {
     }
 
     /// Fan Triangulation (für konvexe Polygone)
-    fn fan_triangulation(&self, vertices: &[Point2D]) -> MathResult<Vec<Triangle>> {
+    fn fan_triangulation(&self, vertices: &[Vec2]) -> MathResult<Vec<Triangle>> {
         if vertices.len() < 3 {
             return Err(MathError::InsufficientPoints {
                 expected: 3,
@@ -237,7 +237,7 @@ impl PolygonTriangulator {
     }
 
     /// Vereinfachte Delaunay Triangulation
-    fn delaunay_triangulation(&self, vertices: &[Point2D]) -> MathResult<Vec<Triangle>> {
+    fn delaunay_triangulation(&self, vertices: &[Vec2]) -> MathResult<Vec<Triangle>> {
         if vertices.len() < 3 {
             return Err(MathError::InsufficientPoints {
                 expected: 3,
@@ -340,7 +340,7 @@ impl PolygonTriangulator {
         Ok(triangles)
     }
 
-    fn compute_bounding_box(&self, vertices: &[Point2D]) -> (Point2D, Point2D) {
+    fn compute_bounding_box(&self, vertices: &[Vec2]) -> (Vec2, Vec2) {
         let mut min = vertices[0];
         let mut max = vertices[0];
 
@@ -354,16 +354,16 @@ impl PolygonTriangulator {
         (min, max)
     }
 
-    fn create_super_triangle(&self, bounds: (Point2D, Point2D)) -> Triangle {
+    fn create_super_triangle(&self, bounds: (Vec2, Vec2)) -> Triangle {
         let (min, max) = bounds;
         let width = max.x - min.x;
         let height = max.y - min.y;
         let margin = (width + height) * 2.0;
 
         Triangle::new(
-            Point2D::new(min.x - margin, min.y - margin),
-            Point2D::new(max.x + margin, min.y - margin),
-            Point2D::new((min.x + max.x) * 0.5, max.y + margin),
+            Vec2::new(min.x - margin, min.y - margin),
+            Vec2::new(max.x + margin, min.y - margin),
+            Vec2::new((min.x + max.x) * 0.5, max.y + margin),
         )
     }
 }
@@ -378,14 +378,14 @@ impl TriangulationUtils {
     }
 
     /// Findet das Dreieck das einen Punkt enthält
-    pub fn find_containing_triangle(triangles: &[Triangle], point: Point2D) -> Option<usize> {
+    pub fn find_containing_triangle(triangles: &[Triangle], point: Vec2) -> Option<usize> {
         triangles
             .iter()
             .position(|triangle| triangle.contains_point(point))
     }
 
     /// Konvertiert Triangulation zu Index-basierter Repräsentation
-    pub fn to_indexed_triangulation(triangles: &[Triangle]) -> (Vec<Point2D>, Vec<[usize; 3]>) {
+    pub fn to_indexed_triangulation(triangles: &[Triangle]) -> (Vec<Vec2>, Vec<[usize; 3]>) {
         let mut vertices = Vec::new();
         let mut indices = Vec::new();
         let mut vertex_map = HashMap::new();
@@ -411,7 +411,7 @@ impl TriangulationUtils {
     }
 
     /// Erstellt Wireframe-Kanten aus Triangulation
-    pub fn extract_edges(triangles: &[Triangle]) -> Vec<(Point2D, Point2D)> {
+    pub fn extract_edges(triangles: &[Triangle]) -> Vec<(Vec2, Vec2)> {
         let mut edges = Vec::new();
 
         for triangle in triangles {
@@ -461,23 +461,23 @@ mod tests {
     #[test]
     fn test_triangle_basic_operations() {
         let triangle = Triangle::new(
-            Point2D::new(0.0, 0.0),
-            Point2D::new(1.0, 0.0),
-            Point2D::new(0.5, 1.0),
+            Vec2::new(0.0, 0.0),
+            Vec2::new(1.0, 0.0),
+            Vec2::new(0.5, 1.0),
         );
 
         assert!(comparison::nearly_equal(triangle.area(), 0.5));
-        assert!(triangle.contains_point(Point2D::new(0.5, 0.3)));
-        assert!(!triangle.contains_point(Point2D::new(0.0, 1.0)));
+        assert!(triangle.contains_point(Vec2::new(0.5, 0.3)));
+        assert!(!triangle.contains_point(Vec2::new(0.0, 1.0)));
     }
 
     #[test]
     fn test_ear_clipping_square() {
         let square = Polygon::closed(vec![
-            Point2D::new(0.0, 0.0),
-            Point2D::new(1.0, 0.0),
-            Point2D::new(1.0, 1.0),
-            Point2D::new(0.0, 1.0),
+            Vec2::new(0.0, 0.0),
+            Vec2::new(1.0, 0.0),
+            Vec2::new(1.0, 1.0),
+            Vec2::new(0.0, 1.0),
         ])
         .unwrap();
 
@@ -493,11 +493,11 @@ mod tests {
     #[test]
     fn test_fan_triangulation() {
         let pentagon = Polygon::closed(vec![
-            Point2D::new(1.0, 0.0),
-            Point2D::new(0.31, 0.95),
-            Point2D::new(-0.81, 0.59),
-            Point2D::new(-0.81, -0.59),
-            Point2D::new(0.31, -0.95),
+            Vec2::new(1.0, 0.0),
+            Vec2::new(0.31, 0.95),
+            Vec2::new(-0.81, 0.59),
+            Vec2::new(-0.81, -0.59),
+            Vec2::new(0.31, -0.95),
         ])
         .unwrap();
 
@@ -508,7 +508,7 @@ mod tests {
 
         // Total area should be close to original polygon area
         let original_area = pentagon.area();
-        let triangulation_area = TriangulationUtils::total_area(&triangles);
+        let _triangulation_area = TriangulationUtils::total_area(&triangles);
         assert!(TriangulationUtils::validate_triangulation(
             &triangles,
             original_area
@@ -518,9 +518,9 @@ mod tests {
     #[test]
     fn test_delaunay_triangulation() {
         let triangle = Polygon::closed(vec![
-            Point2D::new(0.0, 0.0),
-            Point2D::new(2.0, 0.0),
-            Point2D::new(1.0, 2.0),
+            Vec2::new(0.0, 0.0),
+            Vec2::new(2.0, 0.0),
+            Vec2::new(1.0, 2.0),
         ])
         .unwrap();
 
@@ -538,14 +538,14 @@ mod tests {
     fn test_triangulation_utilities() {
         let triangles = vec![
             Triangle::new(
-                Point2D::new(0.0, 0.0),
-                Point2D::new(1.0, 0.0),
-                Point2D::new(0.5, 1.0),
+                Vec2::new(0.0, 0.0),
+                Vec2::new(1.0, 0.0),
+                Vec2::new(0.5, 1.0),
             ),
             Triangle::new(
-                Point2D::new(1.0, 0.0),
-                Point2D::new(2.0, 0.0),
-                Point2D::new(1.5, 1.0),
+                Vec2::new(1.0, 0.0),
+                Vec2::new(2.0, 0.0),
+                Vec2::new(1.5, 1.0),
             ),
         ];
 
@@ -553,7 +553,7 @@ mod tests {
         assert!(comparison::nearly_equal(total_area, 1.0));
 
         let containing =
-            TriangulationUtils::find_containing_triangle(&triangles, Point2D::new(0.5, 0.3));
+            TriangulationUtils::find_containing_triangle(&triangles, Vec2::new(0.5, 0.3));
         assert_eq!(containing, Some(0));
 
         let (vertices, indices) = TriangulationUtils::to_indexed_triangulation(&triangles);

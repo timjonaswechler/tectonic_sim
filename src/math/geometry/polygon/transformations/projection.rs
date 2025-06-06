@@ -2,21 +2,19 @@
 
 use super::super::Polygon;
 use crate::math::{error::*, geometry::sphere::projection::*, types::*, utils::*};
-
+use bevy::math::{Vec2, Vec3};
+use std::f32::consts::PI;
 /// 2D zu 2D Projektionstypen
 #[derive(Debug, Clone, Copy)]
 pub enum Projection2DType {
     /// Orthogonale Projektion auf eine Linie
-    OrthogonalLine {
-        line_start: Point2D,
-        line_end: Point2D,
-    },
+    OrthogonalLine { line_start: Vec2, line_end: Vec2 },
     /// Perspektivische Projektion von einem Punkt
-    Perspective { center: Point2D, distance: f32 },
+    Perspective { center: Vec2, distance: f32 },
     /// Projektion auf einen Kreis
-    CircularProjection { center: Point2D, radius: f32 },
+    CircularProjection { center: Vec2, radius: f32 },
     /// Logarithmische Spirale Projektion
-    LogSpiral { center: Point2D, growth_factor: f32 },
+    LogSpiral { center: Vec2, growth_factor: f32 },
     /// Konforme Mapping (komplexe Zahlen)
     Conformal { transform_type: ConformalType },
 }
@@ -51,15 +49,15 @@ impl Complex {
         Self { real, imag }
     }
 
-    pub fn from_point(point: Point2D) -> Self {
+    pub fn from_point(point: Vec2) -> Self {
         Self {
             real: point.x,
             imag: point.y,
         }
     }
 
-    pub fn to_point(&self) -> Point2D {
-        Point2D::new(self.real, self.imag)
+    pub fn to_point(&self) -> Vec2 {
+        Vec2::new(self.real, self.imag)
     }
 
     pub fn multiply(&self, other: &Complex) -> Complex {
@@ -143,7 +141,7 @@ impl Polygon2DProjector {
     }
 
     /// Projiziert eine Liste von Punkten
-    pub fn project_points(&self, points: &[Point2D]) -> MathResult<Vec<Point2D>> {
+    pub fn project_points(&self, points: &[Vec2]) -> MathResult<Vec<Vec2>> {
         let mut projected_points = Vec::with_capacity(points.len());
 
         for &point in points {
@@ -163,7 +161,7 @@ impl Polygon2DProjector {
     }
 
     /// Projiziert einen einzelnen Punkt
-    pub fn project_point(&self, point: Point2D) -> MathResult<Point2D> {
+    pub fn project_point(&self, point: Vec2) -> MathResult<Vec2> {
         match self.projection_type {
             Projection2DType::OrthogonalLine {
                 line_start,
@@ -187,12 +185,7 @@ impl Polygon2DProjector {
 
     // === Projektions-Implementierungen ===
 
-    fn orthogonal_line_projection(
-        &self,
-        point: Point2D,
-        line_start: Point2D,
-        line_end: Point2D,
-    ) -> Point2D {
+    fn orthogonal_line_projection(&self, point: Vec2, line_start: Vec2, line_end: Vec2) -> Vec2 {
         let line_vec = line_end - line_start;
         let point_vec = point - line_start;
 
@@ -205,12 +198,7 @@ impl Polygon2DProjector {
         line_start + line_vec * projection_factor
     }
 
-    fn perspective_projection(
-        &self,
-        point: Point2D,
-        center: Point2D,
-        distance: f32,
-    ) -> MathResult<Point2D> {
+    fn perspective_projection(&self, point: Vec2, center: Vec2, distance: f32) -> MathResult<Vec2> {
         if distance < constants::EPSILON {
             return Err(MathError::InvalidConfiguration {
                 message: "Perspective distance must be positive".to_string(),
@@ -226,24 +214,19 @@ impl Polygon2DProjector {
         Ok(center + relative_point * perspective_factor)
     }
 
-    fn circular_projection(&self, point: Point2D, center: Point2D, radius: f32) -> Point2D {
+    fn circular_projection(&self, point: Vec2, center: Vec2, radius: f32) -> Vec2 {
         let relative_point = point - center;
         let distance = relative_point.length();
 
         if distance < constants::EPSILON {
-            return center + Point2D::new(radius, 0.0); // Fallback
+            return center + Vec2::new(radius, 0.0); // Fallback
         }
 
         // Projiziere auf Kreis
         center + relative_point * (radius / distance)
     }
 
-    fn log_spiral_projection(
-        &self,
-        point: Point2D,
-        center: Point2D,
-        growth_factor: f32,
-    ) -> Point2D {
+    fn log_spiral_projection(&self, point: Vec2, center: Vec2, growth_factor: f32) -> Vec2 {
         let relative_point = point - center;
         let distance = relative_point.length();
         let angle = relative_point.y.atan2(relative_point.x);
@@ -255,14 +238,10 @@ impl Polygon2DProjector {
         // Logarithmische Spirale: r = a * e^(b * θ)
         let new_radius = distance * (growth_factor * angle).exp();
 
-        center + Point2D::new(new_radius * angle.cos(), new_radius * angle.sin())
+        center + Vec2::new(new_radius * angle.cos(), new_radius * angle.sin())
     }
 
-    fn conformal_projection(
-        &self,
-        point: Point2D,
-        transform_type: ConformalType,
-    ) -> MathResult<Point2D> {
+    fn conformal_projection(&self, point: Vec2, transform_type: ConformalType) -> MathResult<Vec2> {
         let z = Complex::from_point(point);
 
         let transformed = match transform_type {
@@ -314,19 +293,19 @@ pub struct Polygon3DProjector {
 
 impl Polygon3DProjector {
     /// Erstellt einen 3D zu 2D Projektor
-    pub fn new(projection_type: ProjectionType, sphere_radius: f32) -> Self {
-        Self {
-            sphere_projector: SphereProjector::new(projection_type, sphere_radius),
-        }
+    pub fn new(projection_type: SphereProjectionType, sphere_radius: f32) -> MathResult<Self> {
+        Ok(Self {
+            sphere_projector: SphereProjector::new(projection_type, sphere_radius)?,
+        })
     }
 
     /// Projiziert 3D-Punkte auf 2D-Ebene
-    pub fn project_3d_points(&self, points: &[Point3D]) -> MathResult<Vec<Point2D>> {
+    pub fn project_3d_points(&self, points: &[Vec3]) -> MathResult<Vec<Vec2>> {
         self.sphere_projector.project_points(points)
     }
 
     /// Projiziert 3D-Polygon auf 2D-Ebene  
-    pub fn project_3d_polygon_to_2d(&self, points_3d: &[Point3D]) -> MathResult<Polygon> {
+    pub fn project_3d_polygon_to_2d(&self, points_3d: &[Vec3]) -> MathResult<Polygon> {
         let points_2d = self.project_3d_points(points_3d)?;
 
         // Bestimme ob das Polygon geschlossen werden sollte
@@ -370,27 +349,27 @@ impl ProjectionBatch {
         let projection_type = if area < 100.0 {
             // Kleine Polygone: Perspektivische Projektion
             Projection2DType::Perspective {
-                center: polygon.centroid().unwrap_or(Point2D::ZERO),
+                center: polygon.centroid().unwrap_or(Vec2::ZERO),
                 distance: 50.0,
             }
         } else if perimeter / area > 10.0 {
             // Langgestreckte Polygone: Lineare Projektion
             if let Some(bounds) = polygon.bounds() {
-                let center = (bounds.0 + bounds.1) * 0.5;
+                let center = (bounds.min + bounds.max) * 0.5;
                 Projection2DType::OrthogonalLine {
-                    line_start: Point2D::new(bounds.0.x, center.y),
-                    line_end: Point2D::new(bounds.1.x, center.y),
+                    line_start: Vec2::new(bounds.min.x, center.y),
+                    line_end: Vec2::new(bounds.max.x, center.y),
                 }
             } else {
                 Projection2DType::Perspective {
-                    center: Point2D::ZERO,
+                    center: Vec2::ZERO,
                     distance: 100.0,
                 }
             }
         } else {
             // Standard-Polygone: Kreisprojektion
             Projection2DType::CircularProjection {
-                center: polygon.centroid().unwrap_or(Point2D::ZERO),
+                center: polygon.centroid().unwrap_or(Vec2::ZERO),
                 radius: (area / PI).sqrt(),
             }
         };
@@ -401,7 +380,7 @@ impl ProjectionBatch {
 
     /// Multi-Scale Projektion für verschiedene Detail-Level
     pub fn multi_scale_projection(polygon: &Polygon, scales: &[f32]) -> MathResult<Vec<Polygon>> {
-        let center = polygon.centroid().unwrap_or(Point2D::ZERO);
+        let center = polygon.centroid().unwrap_or(Vec2::ZERO);
         let mut results = Vec::with_capacity(scales.len());
 
         for &scale in scales {
@@ -423,7 +402,7 @@ pub struct ProjectionEffects;
 
 impl ProjectionEffects {
     /// Fisheye-Effekt
-    pub fn fisheye(polygon: &Polygon, center: Point2D, strength: f32) -> MathResult<Polygon> {
+    pub fn fisheye(polygon: &Polygon, center: Vec2, strength: f32) -> MathResult<Polygon> {
         let vertices = polygon.vertices();
         let mut projected_vertices = Vec::with_capacity(vertices.len());
 
@@ -454,7 +433,7 @@ impl ProjectionEffects {
     /// Tunnel-Effekt (inverse radiale Projektion)
     pub fn tunnel_effect(
         polygon: &Polygon,
-        center: Point2D,
+        center: Vec2,
         tunnel_radius: f32,
     ) -> MathResult<Polygon> {
         let vertices = polygon.vertices();
@@ -465,7 +444,7 @@ impl ProjectionEffects {
             let distance = relative.length();
 
             if distance < constants::EPSILON {
-                projected_vertices.push(center + Point2D::new(tunnel_radius, 0.0));
+                projected_vertices.push(center + Vec2::new(tunnel_radius, 0.0));
                 continue;
             }
 
@@ -486,7 +465,7 @@ impl ProjectionEffects {
     /// Spiral-Verzerrung
     pub fn spiral_distortion(
         polygon: &Polygon,
-        center: Point2D,
+        center: Vec2,
         twist_factor: f32,
     ) -> MathResult<Polygon> {
         let vertices = polygon.vertices();
@@ -500,9 +479,8 @@ impl ProjectionEffects {
             // Spiral-Transformation: θ' = θ + twist_factor * r
             let new_angle = angle + twist_factor * distance;
 
-            projected_vertices.push(
-                center + Point2D::new(distance * new_angle.cos(), distance * new_angle.sin()),
-            );
+            projected_vertices
+                .push(center + Vec2::new(distance * new_angle.cos(), distance * new_angle.sin()));
         }
 
         if polygon.is_closed() {
@@ -521,16 +499,16 @@ mod tests {
     #[test]
     fn test_orthogonal_projection() {
         let square = Polygon::closed(vec![
-            Point2D::new(0.0, 0.0),
-            Point2D::new(1.0, 0.0),
-            Point2D::new(1.0, 1.0),
-            Point2D::new(0.0, 1.0),
+            Vec2::new(0.0, 0.0),
+            Vec2::new(1.0, 0.0),
+            Vec2::new(1.0, 1.0),
+            Vec2::new(0.0, 1.0),
         ])
         .unwrap();
 
         let projector = Polygon2DProjector::new(Projection2DType::OrthogonalLine {
-            line_start: Point2D::new(0.0, 0.0),
-            line_end: Point2D::new(1.0, 0.0),
+            line_start: Vec2::new(0.0, 0.0),
+            line_end: Vec2::new(1.0, 0.0),
         });
 
         let projected = projector.project_polygon(&square).unwrap();
@@ -544,14 +522,14 @@ mod tests {
     #[test]
     fn test_circular_projection() {
         let triangle = Polygon::closed(vec![
-            Point2D::new(1.0, 0.0),
-            Point2D::new(0.0, 1.0),
-            Point2D::new(-1.0, 0.0),
+            Vec2::new(1.0, 0.0),
+            Vec2::new(0.0, 1.0),
+            Vec2::new(-1.0, 0.0),
         ])
         .unwrap();
 
         let projector = Polygon2DProjector::new(Projection2DType::CircularProjection {
-            center: Point2D::ZERO,
+            center: Vec2::ZERO,
             radius: 2.0,
         });
 
@@ -567,10 +545,10 @@ mod tests {
     #[test]
     fn test_conformal_joukowsky() {
         let circle = Polygon::closed(vec![
-            Point2D::new(1.0, 0.0),
-            Point2D::new(0.0, 1.0),
-            Point2D::new(-1.0, 0.0),
-            Point2D::new(0.0, -1.0),
+            Vec2::new(1.0, 0.0),
+            Vec2::new(0.0, 1.0),
+            Vec2::new(-1.0, 0.0),
+            Vec2::new(0.0, -1.0),
         ])
         .unwrap();
 
@@ -588,16 +566,16 @@ mod tests {
     #[test]
     fn test_projection_effects() {
         let square = Polygon::closed(vec![
-            Point2D::new(-1.0, -1.0),
-            Point2D::new(1.0, -1.0),
-            Point2D::new(1.0, 1.0),
-            Point2D::new(-1.0, 1.0),
+            Vec2::new(-1.0, -1.0),
+            Vec2::new(1.0, -1.0),
+            Vec2::new(1.0, 1.0),
+            Vec2::new(-1.0, 1.0),
         ])
         .unwrap();
 
-        let fisheye = ProjectionEffects::fisheye(&square, Point2D::ZERO, 0.5).unwrap();
-        let tunnel = ProjectionEffects::tunnel_effect(&square, Point2D::ZERO, 2.0).unwrap();
-        let spiral = ProjectionEffects::spiral_distortion(&square, Point2D::ZERO, 0.1).unwrap();
+        let fisheye = ProjectionEffects::fisheye(&square, Vec2::ZERO, 0.5).unwrap();
+        let tunnel = ProjectionEffects::tunnel_effect(&square, Vec2::ZERO, 2.0).unwrap();
+        let spiral = ProjectionEffects::spiral_distortion(&square, Vec2::ZERO, 0.1).unwrap();
 
         // All effects should produce valid polygons
         assert!(fisheye.is_closed());

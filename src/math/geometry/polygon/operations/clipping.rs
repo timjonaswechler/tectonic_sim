@@ -2,6 +2,7 @@
 
 use super::super::Polygon;
 use crate::math::{error::*, types::*, utils::*};
+use bevy::math::Vec2;
 
 /// Verschiedene Clipping-Algorithmen
 #[derive(Debug, Clone, Copy)]
@@ -150,10 +151,10 @@ impl PolygonClipper {
 
         // Clippe gegen jede Seite des Rechtecks
         let clip_edges = [
-            (bounds.min, Point2D::new(bounds.max.x, bounds.min.y)), // Bottom
-            (Point2D::new(bounds.max.x, bounds.min.y), bounds.max), // Right
-            (bounds.max, Point2D::new(bounds.min.x, bounds.max.y)), // Top
-            (Point2D::new(bounds.min.x, bounds.max.y), bounds.min), // Left
+            (bounds.min, Vec2::new(bounds.max.x, bounds.min.y)), // Bottom
+            (Vec2::new(bounds.max.x, bounds.min.y), bounds.max), // Right
+            (bounds.max, Vec2::new(bounds.min.x, bounds.max.y)), // Top
+            (Vec2::new(bounds.min.x, bounds.max.y), bounds.min), // Left
         ];
 
         for (edge_start, edge_end) in &clip_edges {
@@ -225,10 +226,10 @@ impl PolygonClipper {
 
     fn cohen_sutherland_line_clip(
         &self,
-        mut p1: Point2D,
-        mut p2: Point2D,
+        mut p1: Vec2,
+        mut p2: Vec2,
         bounds: Bounds2D,
-    ) -> Option<(Point2D, Point2D)> {
+    ) -> Option<(Vec2, Vec2)> {
         let mut outcode1 = self.compute_outcode(p1, bounds);
         let mut outcode2 = self.compute_outcode(p2, bounds);
 
@@ -262,17 +263,17 @@ impl PolygonClipper {
                 };
 
                 if outcode_out == outcode1 {
-                    p1 = Point2D::new(x, y);
+                    p1 = Vec2::new(x, y);
                     outcode1 = self.compute_outcode(p1, bounds);
                 } else {
-                    p2 = Point2D::new(x, y);
+                    p2 = Vec2::new(x, y);
                     outcode2 = self.compute_outcode(p2, bounds);
                 }
             }
         }
     }
 
-    fn compute_outcode(&self, point: Point2D, bounds: Bounds2D) -> u8 {
+    fn compute_outcode(&self, point: Vec2, bounds: Bounds2D) -> u8 {
         let mut code = 0;
 
         if point.x < bounds.min.x {
@@ -316,12 +317,7 @@ impl PolygonClipper {
         self.reconstruct_polygons_from_edges(&clipped_edges)
     }
 
-    fn liang_barsky_line_clip(
-        &self,
-        p1: Point2D,
-        p2: Point2D,
-        bounds: Bounds2D,
-    ) -> Option<(Point2D, Point2D)> {
+    fn liang_barsky_line_clip(&self, p1: Vec2, p2: Vec2, bounds: Bounds2D) -> Option<(Vec2, Vec2)> {
         let dx = p2.x - p1.x;
         let dy = p2.y - p1.y;
 
@@ -333,8 +329,8 @@ impl PolygonClipper {
             bounds.max.y - p1.y,
         ];
 
-        let mut u1 = 0.0;
-        let mut u2 = 1.0;
+        let mut u1 = 0.0_f32;
+        let mut u2 = 1.0_f32;
 
         for i in 0..4 {
             if p[i] == 0.0 {
@@ -352,8 +348,8 @@ impl PolygonClipper {
         }
 
         if u1 <= u2 {
-            let clipped_start = Point2D::new(p1.x + u1 * dx, p1.y + u1 * dy);
-            let clipped_end = Point2D::new(p1.x + u2 * dx, p1.y + u2 * dy);
+            let clipped_start = Vec2::new(p1.x + u1 * dx, p1.y + u1 * dy);
+            let clipped_end = Vec2::new(p1.x + u2 * dx, p1.y + u2 * dy);
             Some((clipped_start, clipped_end))
         } else {
             None
@@ -401,20 +397,14 @@ impl PolygonClipper {
 
     // === Hilfsfunktionen ===
 
-    fn is_inside(&self, point: Point2D, edge_start: Point2D, edge_end: Point2D) -> bool {
+    fn is_inside(&self, point: Vec2, edge_start: Vec2, edge_end: Vec2) -> bool {
         // Punkt ist "inside" wenn er auf der linken Seite der gerichteten Kante liegt
         let cross = (edge_end.x - edge_start.x) * (point.y - edge_start.y)
             - (edge_end.y - edge_start.y) * (point.x - edge_start.x);
         cross >= -self.tolerance
     }
 
-    fn line_intersection(
-        &self,
-        p1: Point2D,
-        p2: Point2D,
-        p3: Point2D,
-        p4: Point2D,
-    ) -> Option<Point2D> {
+    fn line_intersection(&self, p1: Vec2, p2: Vec2, p3: Vec2, p4: Vec2) -> Option<Vec2> {
         let d1 = p2 - p1;
         let d2 = p4 - p3;
 
@@ -429,10 +419,7 @@ impl PolygonClipper {
         Some(p1 + d1 * t)
     }
 
-    fn reconstruct_polygons_from_edges(
-        &self,
-        edges: &[(Point2D, Point2D)],
-    ) -> MathResult<Vec<Polygon>> {
+    fn reconstruct_polygons_from_edges(&self, edges: &[(Vec2, Vec2)]) -> MathResult<Vec<Polygon>> {
         if edges.is_empty() {
             return Ok(vec![]);
         }
@@ -468,7 +455,7 @@ impl ClippingOperations {
     /// Clippt ein Polygon gegen einen Kreis
     pub fn clip_to_circle(
         polygon: &Polygon,
-        center: Point2D,
+        center: Vec2,
         radius: f32,
     ) -> MathResult<Vec<Polygon>> {
         let vertices = polygon.vertices();
@@ -560,8 +547,8 @@ impl ClippingAnalysis {
 
         // Prüfe auf Überschneidung
         if let (Some(subject_bounds), Some(clipper_bounds)) = (subject.bounds(), clipper.bounds()) {
-            let subject_bounds = Bounds2D::from_points(subject_bounds.0, subject_bounds.1);
-            let clipper_bounds = Bounds2D::from_points(clipper_bounds.0, clipper_bounds.1);
+            let subject_bounds = Bounds2D::from_points(subject_bounds.min, subject_bounds.max);
+            let clipper_bounds = Bounds2D::from_points(clipper_bounds.min, clipper_bounds.max);
 
             if !subject_bounds.intersects(&clipper_bounds) {
                 issues.push("Polygons do not overlap (bounding boxes don't intersect)".to_string());
@@ -623,14 +610,14 @@ mod tests {
     #[test]
     fn test_rectangle_clipping() {
         let square = Polygon::closed(vec![
-            Point2D::new(0.0, 0.0),
-            Point2D::new(2.0, 0.0),
-            Point2D::new(2.0, 2.0),
-            Point2D::new(0.0, 2.0),
+            Vec2::new(0.0, 0.0),
+            Vec2::new(2.0, 0.0),
+            Vec2::new(2.0, 2.0),
+            Vec2::new(0.0, 2.0),
         ])
         .unwrap();
 
-        let clip_bounds = Bounds2D::from_points(Point2D::new(1.0, 1.0), Point2D::new(3.0, 3.0));
+        let clip_bounds = Bounds2D::from_points(Vec2::new(1.0, 1.0), Vec2::new(3.0, 3.0));
 
         let clipped = ClippingOperations::clip_to_rectangle(&square, clip_bounds).unwrap();
 
@@ -641,18 +628,18 @@ mod tests {
     #[test]
     fn test_sutherland_hodgman() {
         let subject = Polygon::closed(vec![
-            Point2D::new(0.0, 0.0),
-            Point2D::new(2.0, 0.0),
-            Point2D::new(2.0, 2.0),
-            Point2D::new(0.0, 2.0),
+            Vec2::new(0.0, 0.0),
+            Vec2::new(2.0, 0.0),
+            Vec2::new(2.0, 2.0),
+            Vec2::new(0.0, 2.0),
         ])
         .unwrap();
 
         let clipper = Polygon::closed(vec![
-            Point2D::new(1.0, 1.0),
-            Point2D::new(3.0, 1.0),
-            Point2D::new(3.0, 3.0),
-            Point2D::new(1.0, 3.0),
+            Vec2::new(1.0, 1.0),
+            Vec2::new(3.0, 1.0),
+            Vec2::new(3.0, 3.0),
+            Vec2::new(1.0, 3.0),
         ])
         .unwrap();
 
@@ -665,31 +652,31 @@ mod tests {
     #[test]
     fn test_circle_clipping() {
         let square = Polygon::closed(vec![
-            Point2D::new(-1.0, -1.0),
-            Point2D::new(1.0, -1.0),
-            Point2D::new(1.0, 1.0),
-            Point2D::new(-1.0, 1.0),
+            Vec2::new(-1.0, -1.0),
+            Vec2::new(1.0, -1.0),
+            Vec2::new(1.0, 1.0),
+            Vec2::new(-1.0, 1.0),
         ])
         .unwrap();
 
-        let clipped = ClippingOperations::clip_to_circle(&square, Point2D::ZERO, 1.5).unwrap();
+        let clipped = ClippingOperations::clip_to_circle(&square, Vec2::ZERO, 1.5).unwrap();
 
         assert_eq!(clipped.len(), 1);
         // All vertices should be within or on the circle
         for vertex in clipped[0].vertices() {
-            assert!(vertex.distance(Point2D::ZERO) <= 1.5 + constants::EPSILON);
+            assert!(vertex.distance(Vec2::ZERO) <= 1.5 + constants::EPSILON);
         }
     }
 
     #[test]
     fn test_cohen_sutherland_outcode() {
         let clipper = PolygonClipper::new(ClippingAlgorithm::CohenSutherland);
-        let bounds = Bounds2D::from_points(Point2D::new(0.0, 0.0), Point2D::new(10.0, 10.0));
+        let bounds = Bounds2D::from_points(Vec2::new(0.0, 0.0), Vec2::new(10.0, 10.0));
 
-        assert_eq!(clipper.compute_outcode(Point2D::new(5.0, 5.0), bounds), 0); // Inside
-        assert_eq!(clipper.compute_outcode(Point2D::new(-1.0, 5.0), bounds), 1); // Left
-        assert_eq!(clipper.compute_outcode(Point2D::new(11.0, 5.0), bounds), 2); // Right
-        assert_eq!(clipper.compute_outcode(Point2D::new(5.0, -1.0), bounds), 4); // Bottom
-        assert_eq!(clipper.compute_outcode(Point2D::new(5.0, 11.0), bounds), 8); // Top
+        assert_eq!(clipper.compute_outcode(Vec2::new(5.0, 5.0), bounds), 0); // Inside
+        assert_eq!(clipper.compute_outcode(Vec2::new(-1.0, 5.0), bounds), 1); // Left
+        assert_eq!(clipper.compute_outcode(Vec2::new(11.0, 5.0), bounds), 2); // Right
+        assert_eq!(clipper.compute_outcode(Vec2::new(5.0, -1.0), bounds), 4); // Bottom
+        assert_eq!(clipper.compute_outcode(Vec2::new(5.0, 11.0), bounds), 8); // Top
     }
 }

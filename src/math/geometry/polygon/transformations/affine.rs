@@ -1,5 +1,6 @@
 use super::super::Polygon;
-use crate::math::{error::MathResult, types::*};
+use crate::math::error::MathResult;
+use bevy::math::Vec2;
 
 /// Affine Transformations-Matrix (3x3 für 2D)
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -73,7 +74,7 @@ impl AffineTransform {
     }
 
     /// Rotation um einen Punkt
-    pub fn rotation_around(angle_rad: f32, center: Point2D) -> Self {
+    pub fn rotation_around(angle_rad: f32, center: Vec2) -> Self {
         let rotation = Self::rotation(angle_rad);
         let translate_back = Self::translation(center.x, center.y);
         let translate_to_origin = Self::translation(-center.x, -center.y);
@@ -153,16 +154,16 @@ impl AffineTransform {
     }
 
     /// Transformiert einen Punkt
-    pub fn transform_point(&self, point: Point2D) -> Point2D {
-        Point2D::new(
+    pub fn transform_point(&self, point: Vec2) -> Vec2 {
+        Vec2::new(
             self.a * point.x + self.c * point.y + self.tx,
             self.b * point.x + self.d * point.y + self.ty,
         )
     }
 
     /// Transformiert nur die Richtung (ohne Translation)
-    pub fn transform_direction(&self, direction: Point2D) -> Point2D {
-        Point2D::new(
+    pub fn transform_direction(&self, direction: Vec2) -> Vec2 {
+        Vec2::new(
             self.a * direction.x + self.c * direction.y,
             self.b * direction.x + self.d * direction.y,
         )
@@ -199,7 +200,7 @@ pub trait AffineTransformable {
         self.transform(&AffineTransform::rotation(angle_rad))
     }
 
-    fn rotate_around(&self, angle_rad: f32, center: Point2D) -> MathResult<Self>
+    fn rotate_around(&self, angle_rad: f32, center: Vec2) -> MathResult<Self>
     where
         Self: Sized,
     {
@@ -209,7 +210,7 @@ pub trait AffineTransformable {
 
 impl AffineTransformable for Polygon {
     fn transform(&self, transform: &AffineTransform) -> MathResult<Self> {
-        let transformed_vertices: Vec<Point2D> = self
+        let transformed_vertices: Vec<Vec2> = self
             .vertices()
             .iter()
             .map(|&vertex| transform.transform_point(vertex))
@@ -261,7 +262,7 @@ impl TransformBuilder {
         self
     }
 
-    pub fn rotate_around(mut self, angle_rad: f32, center: Point2D) -> Self {
+    pub fn rotate_around(mut self, angle_rad: f32, center: Vec2) -> Self {
         self.transform = self
             .transform
             .compose(&AffineTransform::rotation_around(angle_rad, center));
