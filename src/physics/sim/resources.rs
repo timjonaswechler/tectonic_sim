@@ -1,11 +1,14 @@
 use bevy::prelude::*;
 
+use crate::math::probability::SeedResource;
+
 // Hier kommt die Definition von SimulationParameters hin.
 // Die Definition ist dieselbe wie im vorherigen Vorschlag,
 // nur der Ort der Datei ist jetzt korrigiert.
 
 #[derive(Resource, Debug)]
 pub struct SimulationParameters {
+    pub seed: SeedResource,
     // --- Zeitsteuerung ---
     pub advanced_simulation_time_ma: f64,
     pub display_time_ma: f64,
@@ -45,6 +48,7 @@ pub struct SimulationParameters {
 impl Default for SimulationParameters {
     fn default() -> Self {
         Self {
+            seed: SeedResource::default(), // Annahme: SeedResource hat Default-Implementierung
             // Zeit
             advanced_simulation_time_ma: 0.0,
             display_time_ma: 0.0,

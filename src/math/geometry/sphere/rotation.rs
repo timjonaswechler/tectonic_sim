@@ -1,10 +1,6 @@
 use crate::math::geometry::sphere::coordinates::{CoordinateConverter, GeographicCoordinates};
-use crate::math::{
-    error::*,
-    utils::*, // constants, comparison
-};
-
-use bevy::math::{Quat as BevyQuat, Vec3}; // Bevy's Vec3 und Quat
+use crate::math::{error::*, prelude::SeedResource, utils::*};
+use bevy::math::{Quat as BevyQuat, Vec3};
 
 /// Hilfsfunktionen für Rotationen auf einer Kugel, primär unter Verwendung von `bevy::math::Quat`.
 pub struct SphereRotation;
@@ -109,22 +105,20 @@ impl SphereRotation {
     /// Verwendet die Methode von Shoemake (basierend auf Arvo) für gleichverteilte Rotationen.
     pub fn generate_uniform_random_rotations(
         count: usize,
-        rng: &mut impl rand::Rng, // Nimmt einen generischen RNG
+        seed_resource: &mut SeedResource, // << Geändert
     ) -> Vec<BevyQuat> {
         (0..count)
             .map(|_| {
-                // Methode von Ken Shoemake, "Uniform Random Rotations", Graphics Gems III
-                let u1: f32 = rng.random(); // [0,1)
-                let u2: f32 = rng.random(); // [0,1)
-                let u3: f32 = rng.random(); // [0,1)
+                let u1: f32 = seed_resource.next_value(); // << Geändert
+                let u2: f32 = seed_resource.next_value(); // << Geändert
+                let u3: f32 = seed_resource.next_value(); // << Geändert
 
                 let q1_w = (1.0 - u1).sqrt() * (constants::TAU * u2).sin();
                 let q1_x = (1.0 - u1).sqrt() * (constants::TAU * u2).cos();
                 let q2_y = u1.sqrt() * (constants::TAU * u3).sin();
                 let q2_z = u1.sqrt() * (constants::TAU * u3).cos();
 
-                // BevyQuat erwartet (x, y, z, w)
-                BevyQuat::from_xyzw(q1_x, q2_y, q2_z, q1_w).normalize() // Normalize für numerische Stabilität
+                BevyQuat::from_xyzw(q1_x, q2_y, q2_z, q1_w).normalize()
             })
             .collect()
     }

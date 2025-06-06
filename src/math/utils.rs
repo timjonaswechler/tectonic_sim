@@ -276,28 +276,43 @@ pub mod numerical {
 
 /// Random utilities (erweitert vorhandene rand-Funktionalität)
 pub mod random {
+    use crate::math::prelude::SeedResource; // << NEU: SeedResource importieren
     use crate::math::utils::constants::TAU;
+    use crate::next_random_range; // << NEU: Makro importieren (falls nicht schon global)
     use bevy::math::Vec2;
-    use rand::Rng; // Standard Rng Trait
+    // use rand::Rng; // Standard Rng Trait << ENTFERNEN
 
     /// Generiert zufälligen Punkt in einem Rechteck
-    pub fn random_point_in_rect(min: Vec2, max: Vec2, rng: &mut impl Rng) -> Vec2 {
+    pub fn random_point_in_rect(min: Vec2, max: Vec2, seed_resource: &mut SeedResource) -> Vec2 {
+        // << Geändert
         Vec2::new(
-            rng.random_range(min.x..=max.x),
-            rng.random_range(min.y..=max.y),
+            next_random_range!(seed_resource, min.x, max.x), // << Geändert
+            next_random_range!(seed_resource, min.y, max.y), // << Geändert
         )
     }
 
     /// Generiert zufälligen Punkt in einem Kreis
-    pub fn random_point_in_circle(center: Vec2, radius: f32, rng: &mut impl Rng) -> Vec2 {
-        let angle = rng.random_range(0.0..TAU);
-        let r = radius * rng.random::<f32>().sqrt(); // Gleichmäßige Verteilung
+    pub fn random_point_in_circle(
+        center: Vec2,
+        radius: f32,
+        seed_resource: &mut SeedResource,
+    ) -> Vec2 {
+        // << Geändert
+        let angle = next_random_range!(seed_resource, 0.0, TAU); // << Geändert
+        // Annahme: SeedResource hat eine Methode rand_f32() für einen Wert zwischen 0.0 und 1.0
+        // Wenn nicht, kannst du next_random_range!(seed_resource, 0.0, 1.0) verwenden.
+        let r = radius * seed_resource.next_value().sqrt(); // << Geändert
         Vec2::new(center.x + r * angle.cos(), center.y + r * angle.sin())
     }
 
     /// Generiert zufälligen Punkt auf einem Kreis (nur Rand)
-    pub fn random_point_on_circle(center: Vec2, radius: f32, rng: &mut impl Rng) -> Vec2 {
-        let angle = rng.random_range(0.0..TAU);
+    pub fn random_point_on_circle(
+        center: Vec2,
+        radius: f32,
+        seed_resource: &mut SeedResource,
+    ) -> Vec2 {
+        // << Geändert
+        let angle = next_random_range!(seed_resource, 0.0, TAU); // << Geändert
         Vec2::new(
             center.x + radius * angle.cos(),
             center.y + radius * angle.sin(),
@@ -305,12 +320,13 @@ pub mod random {
     }
 
     /// Gaussian distributed random number (Box-Muller transform)
-    pub fn random_gaussian(mean: f32, std_dev: f32, rng: &mut impl Rng) -> f32 {
+    pub fn random_gaussian(mean: f32, std_dev: f32, seed_resource: &mut SeedResource) -> f32 {
+        // << Geändert
         // Für Box-Muller braucht man zwei Zufallszahlen.
         // Die static CACHED Version ist problematisch, besonders mit externem RNG.
         // Einfachere Version ohne Caching:
-        let u1: f32 = rng.random(); // Sollte (0, 1] sein, gen() gibt [0,1)
-        let u2: f32 = rng.random();
+        let u1: f32 = seed_resource.next_value();
+        let u2: f32 = seed_resource.next_value();
 
         let mag = std_dev * (-2.0 * u1.ln()).sqrt();
         let z0 = mag * (TAU * u2).cos();

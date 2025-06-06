@@ -3,11 +3,14 @@
 use crate::math::{
     MathError,
     MathResult,
-    geometry::sphere::coordinates::{CoordinateConverter, SphericalCoordinates}, // SphericalCoords für einige Methoden
-    utils::*, // constants, comparison, angles
+    geometry::sphere::coordinates::{CoordinateConverter, SphericalCoordinates},
+
+    prelude::SeedResource, // << NEU
+    utils::*,
 };
-use bevy::math::{Quat as BevyQuat, Vec2, Vec3};
-use rand::Rng; // Standard Rng Trait
+use crate::next_random_range;
+use bevy::math::{Quat as BevyQuat, Vec2, Vec3}; // << NEU
+// use rand::Rng; // Standard Rng Trait << ENTFERNEN
 use std::f32::consts::{PI, TAU};
 
 /// Verschiedene Sampling-Methoden für Punkte auf einer Kugeloberfläche.
@@ -44,65 +47,63 @@ impl SphereSampler {
     /// Generiert eine bestimmte Anzahl von Punkten auf der Kugeloberfläche.
     /// `rng` ist die Quelle für Zufallszahlen.
     pub fn sample_points(
-        &self, // &self, da der Sampler selbst zustandslos ist bzgl. der Generierung
+        &self,
         count: usize,
-        rng: &mut impl Rng,
+        seed_resource: &mut SeedResource, // << Geändert
     ) -> Vec<Vec3> {
         if count == 0 {
             return Vec::new();
         }
 
         match self.method {
-            SphereSamplingMethod::Uniform => self.uniform_sampling(count, rng),
+            SphereSamplingMethod::Uniform => self.uniform_sampling(count, seed_resource), // << Geändert
             SphereSamplingMethod::Fibonacci => self.fibonacci_sampling(count),
-            SphereSamplingMethod::Stratified => self.stratified_sampling(count, rng),
+            SphereSamplingMethod::Stratified => self.stratified_sampling(count, seed_resource), // << Geändert
             SphereSamplingMethod::PoissonDisk {
                 min_angular_distance_rad,
             } => {
-                // Konvertiere angular distance zu chord length auf der Einheitskugel, dann skaliere mit Radius
                 let chord_length_unit_sphere = 2.0 * (min_angular_distance_rad / 2.0).sin();
                 let min_cartesian_distance = chord_length_unit_sphere * self.radius;
-                self.poisson_disk_sampling(count, min_cartesian_distance, rng)
+                self.poisson_disk_sampling(count, min_cartesian_distance, seed_resource) // << Geändert
             }
         }
     }
 
     /// Generiert einen einzelnen zufälligen Punkt auf der Kugeloberfläche.
-    pub fn sample_single_point(&self, rng: &mut impl Rng) -> Vec3 {
-        // Für die meisten Methoden ist es einfacher, die spezifische Einzelpunktlogik zu verwenden,
-        // anstatt `sample_points(1, ...)` aufzurufen.
+    pub fn sample_single_point(&self, seed_resource: &mut SeedResource) -> Vec3 {
+        // << Geändert
         match self.method {
             SphereSamplingMethod::Uniform | SphereSamplingMethod::Stratified => {
-                self.uniform_point_marsaglia(rng)
+                self.uniform_point_marsaglia(seed_resource) // << Geändert
             }
             SphereSamplingMethod::Fibonacci => self
                 .fibonacci_sampling(1)
                 .pop()
-                .unwrap_or_else(|| self.uniform_point_marsaglia(rng)), // Fallback
+                .unwrap_or_else(|| self.uniform_point_marsaglia(seed_resource)), // << Geändert
             SphereSamplingMethod::PoissonDisk { .. } => {
-                // Poisson Disk ist nicht für einen einzelnen Punkt gedacht, Fallback zu Uniform
-                self.uniform_point_marsaglia(rng)
+                self.uniform_point_marsaglia(seed_resource) // << Geändert
             }
         }
     }
 
     /// Generiert uniform verteilte Punkte mittels Marsaglia-Methode.
-    fn uniform_sampling(&self, count: usize, rng: &mut impl Rng) -> Vec<Vec3> {
+    fn uniform_sampling(&self, count: usize, seed_resource: &mut SeedResource) -> Vec<Vec3> {
+        // << Geändert
         (0..count)
-            .map(|_| self.uniform_point_marsaglia(rng))
+            .map(|_| self.uniform_point_marsaglia(seed_resource)) // << Geändert
             .collect()
     }
 
     /// Generiert einen einzelnen uniform verteilten Punkt mittels Marsaglia-Methode.
     /// Gibt einen Punkt auf der Einheitskugel zurück, skaliert mit `self.radius`.
-    fn uniform_point_marsaglia(&self, rng: &mut impl Rng) -> Vec3 {
+    fn uniform_point_marsaglia(&self, seed_resource: &mut SeedResource) -> Vec3 {
+        // << Geändert
         loop {
-            let x1: f32 = rng.random_range(-1.0..=1.0);
-            let x2: f32 = rng.random_range(-1.0..=1.0);
+            let x1: f32 = next_random_range!(seed_resource, -1.0, 1.0); // << Geändert
+            let x2: f32 = next_random_range!(seed_resource, -1.0, 1.0); // << Geändert
             let sum_sq = x1 * x1 + x2 * x2;
 
             if sum_sq < 1.0 && sum_sq > constants::EPSILON {
-                // sum_sq muss > 0 sein für sqrt
                 let factor_sqrt = (1.0 - sum_sq).sqrt();
                 return Vec3::new(
                     2.0 * x1 * factor_sqrt,
@@ -139,29 +140,15 @@ impl SphereSampler {
     /// Generiert Punkte mittels Stratified Sampling.
     /// Teilt die Kugeloberfläche in (annähernd) gleich große Flächen auf und platziert
     /// einen gejitterten Punkt in jeder Zelle.
-    fn stratified_sampling(&self, count: usize, rng: &mut impl Rng) -> Vec<Vec3> {
-        // Annahme: count ist ungefähr eine Quadratzahl für gute Aufteilung
+    fn stratified_sampling(&self, count: usize, seed_resource: &mut SeedResource) -> Vec<Vec3> {
+        // << Geändert
         let num_latitude_bands = ((count as f32 * PI).sqrt().round() as usize).max(1);
         let mut points = Vec::with_capacity(count);
         let mut points_generated = 0;
 
         for i in 0..num_latitude_bands {
-            let lat_min = -constants::PI_OVER_2 + (i as f32 / num_latitude_bands as f32) * PI;
-            let lat_max = -constants::PI_OVER_2 + ((i + 1) as f32 / num_latitude_bands as f32) * PI;
-
-            // Anzahl der Punkte in diesem Breitengradband, proportional zur Fläche des Bandes
-            // Fläche eines Bands ist proportional zu cos(mittlere_latitude) * band_höhe
-            // Einfacher: proportional zur Bogenlänge des Breitengrads (cos(lat))
-            let mid_lat = (lat_min + lat_max) * 0.5;
-            let _points_in_band =
-                ((count as f32 * mid_lat.cos().abs()) / num_latitude_bands as f32).round() as usize;
-            // Alternative: Gleichmäßigere Verteilung, wenn man cos(phi) gleichmäßig verteilt.
-            // z = cos(phi) -> phi = acos(z). z gleichmäßig von -1 bis 1.
-            // Hier verwenden wir eine vereinfachte Stratifizierung in u,v Parameterraum.
-
             let u_min = i as f32 / num_latitude_bands as f32;
             let u_max = (i + 1) as f32 / num_latitude_bands as f32;
-
             let points_this_band = (count as f32 / num_latitude_bands as f32).ceil() as usize;
 
             for _ in 0..points_this_band {
@@ -169,12 +156,10 @@ impl SphereSampler {
                     break;
                 }
 
-                let u_rand = rng.random_range(u_min..u_max); // Jitter in u
-                let v_rand: f32 = rng.random(); // Jitter in v [0,1)
-
-                let theta = TAU * v_rand; // Azimut
-                let phi = (2.0 * u_rand - 1.0).acos(); // Polarwinkel, so dass cos(phi) uniform ist
-
+                let u_rand = next_random_range!(seed_resource, u_min, u_max); // << Geändert
+                let v_rand: f32 = seed_resource.next_value(); // << Geändert (Annahme: rand_f32() existiert)
+                let theta = TAU * v_rand;
+                let phi = (2.0 * u_rand - 1.0).acos();
                 let sin_phi = phi.sin();
                 points.push(
                     Vec3::new(sin_phi * theta.cos(), sin_phi * theta.sin(), phi.cos())
@@ -186,7 +171,7 @@ impl SphereSampler {
                 break;
             }
         }
-        points.truncate(count); // Falls zu viele generiert wurden
+        points.truncate(count);
         points
     }
 
@@ -194,58 +179,50 @@ impl SphereSampler {
     /// `min_cartesian_distance` ist der minimale euklidische Abstand zwischen Punkten.
     fn poisson_disk_sampling(
         &self,
-        target_count: usize, // Zielanzahl, Algorithmus versucht, diese zu erreichen
+        target_count: usize,
         min_cartesian_distance: f32,
-        rng: &mut impl Rng,
+        seed_resource: &mut SeedResource, // << Geändert
     ) -> Vec<Vec3> {
         if min_cartesian_distance <= 0.0 {
-            return self.uniform_sampling(target_count, rng);
+            return self.uniform_sampling(target_count, seed_resource); // << Geändert
         }
 
         let mut points = Vec::new();
-        let mut active_list = Vec::new(); // Indizes in `points`
+        let mut active_list = Vec::new();
 
-        // Startpunkt (ein zufälliger Punkt auf der Kugel)
-        let first_point = self.uniform_point_marsaglia(rng);
+        let first_point = self.uniform_point_marsaglia(seed_resource); // << Geändert
         points.push(first_point);
         active_list.push(0);
 
-        let k_attempts = 30; // Anzahl Versuche, einen validen Nachbarn zu finden
+        let k_attempts = 30;
 
         while !active_list.is_empty() && points.len() < target_count {
-            let active_idx_in_list = rng.random_range(0..active_list.len());
+            let active_idx_in_list =
+                next_random_range!(seed_resource, 0, active_list.len() - 1) as usize;
             let current_point_idx = active_list[active_idx_in_list];
             let current_point = points[current_point_idx];
 
             let mut found_candidate_for_current = false;
             for _ in 0..k_attempts {
-                // Generiere Kandidaten in einem Ring um current_point
-                // Winkelabstand für den Ring: [min_dist, 2*min_dist] auf der Kugeloberfläche
-                let random_angle_dist_rad = rng.random_range(
-                    (min_cartesian_distance / self.radius)
-                        ..(2.0 * min_cartesian_distance / self.radius),
+                let random_angle_dist_rad = next_random_range!(
+                    // << Geändert
+                    seed_resource,
+                    (min_cartesian_distance / self.radius),
+                    (2.0 * min_cartesian_distance / self.radius)
                 );
-                let random_azimuth_rad: f32 = rng.random_range(0.0..TAU);
+                let random_azimuth_rad: f32 = next_random_range!(seed_resource, 0.0, TAU); // << Geändert
 
-                // Erzeuge einen zufälligen Rotationsquaternion
-                let random_axis = self.uniform_point_marsaglia(rng).normalize_or_zero(); // Zufällige Achse
-                let candidate_rotation =
+                let random_axis = self
+                    .uniform_point_marsaglia(seed_resource)
+                    .normalize_or_zero(); // << Geändert
+                let _candidate_rotation =
                     BevyQuat::from_axis_angle(random_axis, random_angle_dist_rad);
-                let _candidate_offset_direction =
-                    candidate_rotation * current_point.normalize_or_zero(); // Rotiere die Richtung vom current_point
 
-                // Alternative: Generiere Punkt in Kugel-Kappe
-                // Dies ist komplexer, um eine gleichmäßige Verteilung im Ring zu gewährleisten.
-                // Einfacher: Zufällige Rotation eines Referenzvektors um `current_point` als Achse,
-                // dann diesen rotierten Vektor um einen Winkel `random_angle_dist_rad` "kippen".
-
-                // Einfacherer Ansatz für Kandidatengenerierung (nicht perfekt uniform im Ring):
-                // Nimm eine zufällige Richtung, rotiere sie um den aktuellen Punkt
                 let (tangent_u, tangent_v) =
                     CoordinateConverter::sphere_tangents_at_point(current_point);
                 let local_offset = Vec2::from_angle(random_azimuth_rad).normalize()
                     * min_cartesian_distance
-                    * rng.random_range(1.0..2.0);
+                    * next_random_range!(seed_resource, 1.0, 2.0); // << Geändert
                 let candidate_on_tangent_plane =
                     current_point + tangent_u * local_offset.x + tangent_v * local_offset.y;
                 let candidate =
@@ -262,7 +239,7 @@ impl SphereSampler {
             }
 
             if !found_candidate_for_current {
-                active_list.swap_remove(active_idx_in_list);
+                active_list.swap_remove(active_idx_in_list as usize);
             }
         }
         points
@@ -379,34 +356,27 @@ impl SamplingPatterns {
     /// `cap_angle_rad` ist der halbe Öffnungswinkel der Kappe in Radiant.
     pub fn spherical_cap_points(
         radius: f32,
-        cap_axis: Vec3,     // Normalisierte Achse der Kappe
-        cap_angle_rad: f32, // Halber Öffnungswinkel der Kappe [0, PI]
+        cap_axis: Vec3,
+        cap_angle_rad: f32,
         count: usize,
-        rng: &mut impl Rng,
+        seed_resource: &mut SeedResource, // << Geändert
     ) -> Vec<Vec3> {
         if count == 0 || cap_angle_rad <= 0.0 {
             return Vec::new();
         }
         let cap_angle_clamped = cap_angle_rad.clamp(0.0, PI);
-
         let mut points = Vec::with_capacity(count);
-        let cos_max_polar_offset = cap_angle_clamped.cos(); // cos(alpha_max)
-
-        // Rotation, um cap_axis auf die Z-Achse auszurichten
+        let cos_max_polar_offset = cap_angle_clamped.cos();
         let rotation_to_z = BevyQuat::from_rotation_arc(cap_axis.normalize_or_zero(), Vec3::Z);
         let rotation_from_z = rotation_to_z.inverse();
 
         for _ in 0..count {
-            // Uniform sampling auf einer Kappe, die am Nordpol zentriert ist
-            let cos_polar_offset = rng.random_range(cos_max_polar_offset..=1.0); // z-Koordinate auf Einheitskugel
-            let polar_offset = cos_polar_offset.acos(); // Winkel zur Z-Achse [0, cap_angle_clamped]
-            let azimuth = rng.random_range(0.0..TAU); // Azimutwinkel
-
+            let cos_polar_offset = next_random_range!(seed_resource, cos_max_polar_offset, 1.0); // << Geändert
+            let polar_offset = cos_polar_offset.acos();
+            let azimuth = next_random_range!(seed_resource, 0.0, TAU); // << Geändert
             let point_on_z_cap = SphericalCoordinates::new(radius, polar_offset, azimuth)
                 .expect("Spherical coord creation failed")
                 .to_cartesian();
-
-            // Rotiere den Punkt zurück zur ursprünglichen Kappenorientierung
             points.push(rotation_from_z * point_on_z_cap);
         }
         points

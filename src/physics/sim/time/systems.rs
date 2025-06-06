@@ -1,9 +1,6 @@
 use super::super::state::SimulationState;
 use super::resources::*;
-
-use crate::debug::visualization::normal_vector::{self, NormalArrowVisual};
 use crate::physics::sim::resources::SimulationParameters; // Importiere aus dem übergeordneten Sim-Modul
-use crate::{debug, math};
 use bevy::prelude::*;
 
 pub fn handle_timeline_interaction_system(
@@ -273,7 +270,7 @@ pub fn finish_initialization_system(
 }
 
 pub fn setup_initial_world_conditions_system(
-    mut commands: Commands,
+    mut _commands: Commands,
     mut sim_params: ResMut<SimulationParameters>,
 ) {
     // Set initial simulation parameters
@@ -291,8 +288,8 @@ pub fn record_snapshot_system(
     mut sim_params: ResMut<SimulationParameters>,
     mut history: ResMut<TickHistory>,
     mut exec_single_step: ResMut<ExecuteSingleStepRequest>,
-    mut commands: Commands, // Falls Snapshots Entitäten oder so enthalten
-                            // Query für den aktuellen Weltzustand, um ihn zu speichern
+    mut _commands: Commands, // Falls Snapshots Entitäten oder so enthalten
+                             // Query für den aktuellen Weltzustand, um ihn zu speichern
 ) {
     // Dieses System läuft NACH den eigentlichen Simulationssystemen,
     // unter denselben Bedingungen (Running oder Paused+SingleStep).

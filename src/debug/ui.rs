@@ -2,7 +2,7 @@
 use crate::math::probability::SeedResource;
 use crate::physics::sim::resources::SimulationParameters;
 use crate::physics::sim::state::SimulationState; // Importiere den State
-use crate::physics::sim::time::resources::{SimulationSnapshot, TickHistory};
+use crate::physics::sim::time::resources::TickHistory;
 use bevy::prelude::*;
 use bevy_egui::{
     EguiContexts,

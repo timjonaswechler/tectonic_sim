@@ -29,10 +29,10 @@ pub fn run_plate_dynamics_system(
 
 // BEISPIEL: System, das das Ergebnis der Voronoi-Generierung verarbeitet
 pub fn process_generated_shapes_system(
-    mut commands: Commands,
-    sim_params: Res<SimulationParameters>, // um den aktuellen Zeitstempel zu bekommen
-                                           // query_existing_cratons: Query<Entity, With<CratonComponent>>, // um alte ggf. zu despawnen
-                                           // mut gizmos: Gizmos, // Falls benötigt für Debug-Zeichnung
+    mut _commands: Commands,
+    _sim_params: Res<SimulationParameters>, // um den aktuellen Zeitstempel zu bekommen
+                                            // query_existing_cratons: Query<Entity, With<CratonComponent>>, // um alte ggf. zu despawnen
+                                            // mut gizmos: Gizmos, // Falls benötigt für Debug-Zeichnung
 ) {
     // Diese Funktion würde NUR laufen, wenn State::Running oder SingleStep im Paused-State.
     // Sie wird NACH run_plate_dynamics_system laufen.
