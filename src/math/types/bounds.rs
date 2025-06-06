@@ -1,48 +1,85 @@
-// src/math/types/bounds.rs
+use crate::math::error::{MathError, MathResult};
+use bevy::math::{Vec2, Vec3};
+// --- Boolesche Hilfsstrukturen ---
+// (Behalten, falls nützlich für komponentenweise Vergleiche)
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Bool2 {
+    pub x: bool,
+    pub y: bool,
+}
+impl Bool2 {
+    pub fn new(x: bool, y: bool) -> Self {
+        Self { x, y }
+    }
+    pub fn all(self) -> bool {
+        self.x && self.y
+    }
+    pub fn any(self) -> bool {
+        self.x || self.y
+    }
+}
 
-use crate::math::{error::*, types::*};
-use std::fmt;
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Bool3 {
+    pub x: bool,
+    pub y: bool,
+    pub z: bool,
+}
+impl Bool3 {
+    pub fn new(x: bool, y: bool, z: bool) -> Self {
+        Self { x, y, z }
+    }
+    pub fn all(self) -> bool {
+        self.x && self.y && self.z
+    }
+    pub fn any(self) -> bool {
+        self.x || self.y || self.z
+    }
+}
+
+// --- Bounding Box Strukturen ---
 
 /// 2D Bounding Box (Axis-Aligned Bounding Box)
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Bounds2D {
-    pub min: Point2D,
-    pub max: Point2D,
+    pub min: Vec2,
+    pub max: Vec2,
 }
 
 impl Bounds2D {
-    /// Erstellt eine neue Bounding Box
-    pub fn new(min: Point2D, max: Point2D) -> MathResult<Self> {
+    /// Erstellt eine neue Bounding Box.
+    pub fn new(min: Vec2, max: Vec2) -> MathResult<Self> {
         if min.x > max.x || min.y > max.y {
             return Err(MathError::InvalidConfiguration {
                 message: format!("Invalid bounds: min {:?} > max {:?}", min, max),
             });
         }
-
         Ok(Self { min, max })
     }
 
-    /// Erstellt eine Bounding Box aus zwei beliebigen Punkten
-    pub fn from_points(p1: Point2D, p2: Point2D) -> Self {
+    /// Erstellt eine Bounding Box aus zwei beliebigen Punkten.
+    pub fn from_points(p1: Vec2, p2: Vec2) -> Self {
         Self {
-            min: Point2D::new(p1.x.min(p2.x), p1.y.min(p2.y)),
-            max: Point2D::new(p1.x.max(p2.x), p1.y.max(p2.y)),
+            min: Vec2::new(p1.x.min(p2.x), p1.y.min(p2.y)),
+            max: Vec2::new(p1.x.max(p2.x), p1.y.max(p2.y)),
         }
     }
 
-    /// Erstellt eine Bounding Box aus Zentrum und Größe
-    pub fn from_center_size(center: Point2D, size: Point2D) -> Self {
+    /// Erstellt eine Bounding Box aus Zentrum und Größe.
+    pub fn from_center_size(center: Vec2, size: Vec2) -> MathResult<Self> {
+        if size.x < 0.0 || size.y < 0.0 {
+            return Err(MathError::InvalidConfiguration {
+                message: "Bounds size cannot be negative".to_string(),
+            });
+        }
         let half_size = size * 0.5;
-        Self {
-            min: center - half_size,
-            max: center + half_size,
-        }
+        Self::new(center - half_size, center + half_size)
     }
 
-    /// Erstellt eine Bounding Box die alle Punkte umschließt
+    /// Erstellt eine Bounding Box die alle Punkte umschließt.
     pub fn from_points_iter<I>(points: I) -> Option<Self>
     where
-        I: IntoIterator<Item = Point2D>,
+        I: IntoIterator<Item = Vec2>,
     {
         let mut points_iter = points.into_iter();
         let first_point = points_iter.next()?;
@@ -51,32 +88,29 @@ impl Bounds2D {
         let mut max = first_point;
 
         for point in points_iter {
-            min.x = min.x.min(point.x);
-            min.y = min.y.min(point.y);
-            max.x = max.x.max(point.x);
-            max.y = max.y.max(point.y);
+            min = min.min(point); // Bevy's Vec2 hat min/max
+            max = max.max(point);
         }
-
-        Some(Self { min, max })
+        Some(Self { min, max }) // new() wird nicht benötigt, da min/max korrekt sind
     }
 
-    /// Leere Bounding Box (ungültig)
+    /// Leere Bounding Box (ungültig, aber nützlich als Startwert).
     pub fn empty() -> Self {
         Self {
-            min: Point2D::new(f32::INFINITY, f32::INFINITY),
-            max: Point2D::new(f32::NEG_INFINITY, f32::NEG_INFINITY),
+            min: Vec2::new(f32::INFINITY, f32::INFINITY),
+            max: Vec2::new(f32::NEG_INFINITY, f32::NEG_INFINITY),
         }
     }
 
-    /// Infinite Bounding Box (umschließt alles)
+    /// Infinite Bounding Box (umschließt alles).
     pub fn infinite() -> Self {
         Self {
-            min: Point2D::new(f32::NEG_INFINITY, f32::NEG_INFINITY),
-            max: Point2D::new(f32::INFINITY, f32::INFINITY),
+            min: Vec2::new(f32::NEG_INFINITY, f32::NEG_INFINITY),
+            max: Vec2::new(f32::INFINITY, f32::INFINITY),
         }
     }
 
-    /// Prüft ob die Bounding Box gültig ist
+    /// Prüft ob die Bounding Box gültig ist.
     pub fn is_valid(&self) -> bool {
         self.min.x <= self.max.x
             && self.min.y <= self.max.y
@@ -86,32 +120,24 @@ impl Bounds2D {
             && self.max.y.is_finite()
     }
 
-    /// Prüft ob die Bounding Box leer ist
+    /// Prüft ob die Bounding Box leer ist (im Sinne von invertiert/ungültig).
     pub fn is_empty(&self) -> bool {
         self.min.x > self.max.x || self.min.y > self.max.y
     }
 
-    /// Breite der Bounding Box
     pub fn width(&self) -> f32 {
         (self.max.x - self.min.x).max(0.0)
     }
-
-    /// Höhe der Bounding Box
     pub fn height(&self) -> f32 {
         (self.max.y - self.min.y).max(0.0)
     }
-
-    /// Größe der Bounding Box
-    pub fn size(&self) -> Point2D {
-        Point2D::new(self.width(), self.height())
+    pub fn size(&self) -> Vec2 {
+        Vec2::new(self.width(), self.height())
     }
-
-    /// Zentrum der Bounding Box
-    pub fn center(&self) -> Point2D {
+    pub fn center(&self) -> Vec2 {
         (self.min + self.max) * 0.5
     }
 
-    /// Fläche der Bounding Box
     pub fn area(&self) -> f32 {
         if self.is_empty() {
             0.0
@@ -120,7 +146,6 @@ impl Bounds2D {
         }
     }
 
-    /// Umfang der Bounding Box
     pub fn perimeter(&self) -> f32 {
         if self.is_empty() {
             0.0
@@ -129,15 +154,13 @@ impl Bounds2D {
         }
     }
 
-    /// Prüft ob ein Punkt in der Bounding Box liegt
-    pub fn contains_point(&self, point: Point2D) -> bool {
+    pub fn contains_point(&self, point: Vec2) -> bool {
         point.x >= self.min.x
             && point.x <= self.max.x
             && point.y >= self.min.y
             && point.y <= self.max.y
     }
 
-    /// Prüft ob eine andere Bounding Box vollständig enthalten ist
     pub fn contains_bounds(&self, other: &Bounds2D) -> bool {
         if other.is_empty() {
             return true;
@@ -145,38 +168,32 @@ impl Bounds2D {
         if self.is_empty() {
             return false;
         }
-
         self.min.x <= other.min.x
             && self.max.x >= other.max.x
             && self.min.y <= other.min.y
             && self.max.y >= other.max.y
     }
 
-    /// Prüft ob sich zwei Bounding Boxes überschneiden
     pub fn intersects(&self, other: &Bounds2D) -> bool {
         if self.is_empty() || other.is_empty() {
             return false;
         }
-
         self.min.x <= other.max.x
             && self.max.x >= other.min.x
             && self.min.y <= other.max.y
             && self.max.y >= other.min.y
     }
 
-    /// Berechnet die Überschneidung zweier Bounding Boxes
     pub fn intersection(&self, other: &Bounds2D) -> Self {
         if !self.intersects(other) {
             return Self::empty();
         }
-
         Self {
-            min: Point2D::new(self.min.x.max(other.min.x), self.min.y.max(other.min.y)),
-            max: Point2D::new(self.max.x.min(other.max.x), self.max.y.min(other.max.y)),
+            min: self.min.max(other.min), // Vec2::max
+            max: self.max.min(other.max), // Vec2::min
         }
     }
 
-    /// Vereinigt zwei Bounding Boxes
     pub fn union(&self, other: &Bounds2D) -> Self {
         if self.is_empty() {
             return *other;
@@ -184,27 +201,22 @@ impl Bounds2D {
         if other.is_empty() {
             return *self;
         }
-
         Self {
-            min: Point2D::new(self.min.x.min(other.min.x), self.min.y.min(other.min.y)),
-            max: Point2D::new(self.max.x.max(other.max.x), self.max.y.max(other.max.y)),
+            min: self.min.min(other.min), // Vec2::min
+            max: self.max.max(other.max), // Vec2::max
         }
     }
 
-    /// Erweitert die Bounding Box um einen Punkt
-    pub fn expand_to_include_point(&mut self, point: Point2D) {
+    pub fn expand_to_include_point(&mut self, point: Vec2) {
         if self.is_empty() {
             self.min = point;
             self.max = point;
         } else {
-            self.min.x = self.min.x.min(point.x);
-            self.min.y = self.min.y.min(point.y);
-            self.max.x = self.max.x.max(point.x);
-            self.max.y = self.max.y.max(point.y);
+            self.min = self.min.min(point);
+            self.max = self.max.max(point);
         }
     }
 
-    /// Erweitert die Bounding Box um eine andere Bounding Box
     pub fn expand_to_include_bounds(&mut self, other: &Bounds2D) {
         if !other.is_empty() {
             self.expand_to_include_point(other.min);
@@ -212,110 +224,91 @@ impl Bounds2D {
         }
     }
 
-    /// Erweitert die Bounding Box um einen Margin
     pub fn expand(&self, margin: f32) -> Self {
         if self.is_empty() {
             return *self;
         }
-
-        Self {
-            min: Point2D::new(self.min.x - margin, self.min.y - margin),
-            max: Point2D::new(self.max.x + margin, self.max.y + margin),
-        }
+        // new() kann fehlschlagen, wenn margin negativ und groß genug ist, um min > max zu machen
+        // aber typischerweise ist margin positiv. Wir könnten hier ein unwrap_or_else verwenden
+        // oder die Verantwortung dem Aufrufer überlassen. Fürs Erste:
+        Self::new(
+            self.min - Vec2::splat(margin),
+            self.max + Vec2::splat(margin),
+        )
+        .unwrap_or_else(|_| *self) // Fallback auf self bei ungültigen Bounds
     }
 
-    /// Erweitert die Bounding Box um verschiedene Margins
     pub fn expand_by(&self, left: f32, right: f32, top: f32, bottom: f32) -> Self {
         if self.is_empty() {
             return *self;
         }
-
-        Self {
-            min: Point2D::new(self.min.x - left, self.min.y - bottom),
-            max: Point2D::new(self.max.x + right, self.max.y + top),
-        }
+        Self::new(
+            Vec2::new(self.min.x - left, self.min.y - bottom),
+            Vec2::new(self.max.x + right, self.max.y + top),
+        )
+        .unwrap_or_else(|_| *self)
     }
 
-    /// Skaliert die Bounding Box um einen Faktor
-    pub fn scale(&self, factor: f32) -> Self {
+    pub fn scale_around_center(&self, factor: f32) -> MathResult<Self> {
         if self.is_empty() {
-            return *self;
+            return Ok(*self);
         }
-
         let center = self.center();
         let half_size = self.size() * factor * 0.5;
-
-        Self {
-            min: center - half_size,
-            max: center + half_size,
-        }
+        Self::from_center_size(center, half_size)
     }
 
-    /// Skaliert die Bounding Box um verschiedene Faktoren
-    pub fn scale_xy(&self, factor_x: f32, factor_y: f32) -> Self {
+    pub fn scale_xy_around_center(&self, factor_x: f32, factor_y: f32) -> MathResult<Self> {
         if self.is_empty() {
-            return *self;
+            return Ok(*self);
         }
-
         let center = self.center();
-        let half_size = Point2D::new(
-            self.width() * factor_x * 0.5,
-            self.height() * factor_y * 0.5,
-        );
-
-        Self {
-            min: center - half_size,
-            max: center + half_size,
-        }
+        let new_size = Vec2::new(self.width() * factor_x, self.height() * factor_y);
+        Self::from_center_size(center, new_size)
     }
 
-    /// Verschiebt die Bounding Box
-    pub fn translate(&self, offset: Point2D) -> Self {
-        Self {
-            min: self.min + offset,
-            max: self.max + offset,
-        }
+    pub fn translate(&self, offset: Vec2) -> Self {
+        // new() kann hier nicht fehlschlagen, da es nur eine Verschiebung ist
+        Self::new(self.min + offset, self.max + offset).expect("Translate should not fail")
     }
 
-    /// Berechnet den nächsten Punkt auf der Bounding Box zu einem gegebenen Punkt
-    pub fn closest_point(&self, point: Point2D) -> Point2D {
+    pub fn closest_point(&self, point: Vec2) -> Vec2 {
         if self.is_empty() {
             return point;
-        }
-
-        Point2D::new(
+        } // Oder ein anderer Fallback
+        Vec2::new(
             point.x.clamp(self.min.x, self.max.x),
             point.y.clamp(self.min.y, self.max.y),
         )
     }
 
-    /// Berechnet den Abstand von einem Punkt zur Bounding Box
-    pub fn distance_to_point(&self, point: Point2D) -> f32 {
+    pub fn distance_to_point_sq(&self, point: Vec2) -> f32 {
         if self.is_empty() {
             return f32::INFINITY;
         }
-
         if self.contains_point(point) {
             return 0.0;
         }
-
         let closest = self.closest_point(point);
-        point.distance(closest)
+        point.distance_squared(closest)
     }
 
-    /// Erzeugt die vier Eckpunkte der Bounding Box
-    pub fn corners(&self) -> [Point2D; 4] {
+    pub fn distance_to_point(&self, point: Vec2) -> f32 {
+        self.distance_to_point_sq(point).sqrt()
+    }
+
+    pub fn corners(&self) -> [Vec2; 4] {
         [
-            self.min,                             // unten links
-            Point2D::new(self.max.x, self.min.y), // unten rechts
-            self.max,                             // oben rechts
-            Point2D::new(self.min.x, self.max.y), // oben links
+            self.min,
+            Vec2::new(self.max.x, self.min.y),
+            self.max,
+            Vec2::new(self.min.x, self.max.y),
         ]
     }
 }
 
-impl fmt::Display for Bounds2D {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl std::fmt::Display for Bounds2D {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.is_empty() {
             write!(f, "Bounds2D(empty)")
         } else {
@@ -327,42 +320,44 @@ impl fmt::Display for Bounds2D {
 /// 3D Bounding Box
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Bounds3D {
-    pub min: Point3D,
-    pub max: Point3D,
+    pub min: Vec3,
+    pub max: Vec3,
 }
 
 impl Bounds3D {
-    pub fn new(min: Point3D, max: Point3D) -> MathResult<Self> {
+    pub fn new(min: Vec3, max: Vec3) -> MathResult<Self> {
         if min.x > max.x || min.y > max.y || min.z > max.z {
             return Err(MathError::InvalidConfiguration {
                 message: format!("Invalid 3D bounds: min {:?} > max {:?}", min, max),
             });
         }
-
         Ok(Self { min, max })
     }
 
-    pub fn from_points(p1: Point3D, p2: Point3D) -> Self {
+    pub fn from_points(p1: Vec3, p2: Vec3) -> Self {
         Self {
-            min: Point3D::new(p1.x.min(p2.x), p1.y.min(p2.y), p1.z.min(p2.z)),
-            max: Point3D::new(p1.x.max(p2.x), p1.y.max(p2.y), p1.z.max(p2.z)),
+            min: p1.min(p2),
+            max: p1.max(p2),
         }
     }
 
-    pub fn center(&self) -> Point3D {
+    pub fn center(&self) -> Vec3 {
         (self.min + self.max) * 0.5
     }
-
-    pub fn size(&self) -> Point3D {
+    pub fn size(&self) -> Vec3 {
         self.max - self.min
     }
 
     pub fn volume(&self) -> f32 {
-        let size = self.size();
-        size.x * size.y * size.z
+        let s = self.size();
+        if s.x < 0.0 || s.y < 0.0 || s.z < 0.0 {
+            0.0
+        } else {
+            s.x * s.y * s.z
+        }
     }
 
-    pub fn contains_point(&self, point: Point3D) -> bool {
+    pub fn contains_point(&self, point: Vec3) -> bool {
         point.x >= self.min.x
             && point.x <= self.max.x
             && point.y >= self.min.y

@@ -2,7 +2,6 @@ pub mod events;
 pub mod plugin;
 pub mod resource;
 
-use std::ops::Range;
 #[macro_export]
 macro_rules! next_random_value {
     // Variante für spezifische Kategorie
@@ -53,38 +52,23 @@ macro_rules! next_random_ratio {
 
 #[macro_export]
 macro_rules! next_random_iter {
-    // Inklusive Range: min..=max
-    ($seed_resource:expr, $min:tt ..= $max:tt   , $category:expr) => {
-        $seed_resource.next_i64_in_inclusive_range($min, $max, Some($category))
-    };
-    ($seed_resource:expr, $min:tt ..= $max:tt) => {
-        $seed_resource.next_i64_in_inclusive_range($min, $max, None)
-    };
     // Exklusive Range: min..max
-    ($seed_resource:expr, $min:tt .. $max:tt, $category:expr) => {
+    ($seed_resource:expr, $min:expr, $max:expr, $category:expr) => {
         $seed_resource.next_i64_in_range($min, $max, Some($category))
     };
-    ($seed_resource:expr, $min:tt .. $max:tt) => {
+    ($seed_resource:expr, $min:expr, $max:expr) => {
         $seed_resource.next_i64_in_range($min, $max, None)
     };
 }
 
 #[macro_export]
 macro_rules! next_random_range {
-    // Inklusive Range mit Kategorie
-    ($seed_resource:expr, $min:tt ..= $max:tt, $category:expr) => {
-        $seed_resource.next_f64_in_inclusive_range($min, $max, Some($category))
-    };
-    // Inklusive Range ohne Kategorie
-    ($seed_resource:expr, $min:tt ..= $max:tt) => {
-        $seed_resource.next_f64_in_inclusive_range($min, $max, None)
-    };
     // Exklusive Range mit Kategorie
-    ($seed_resource:expr, $min:tt .. $max:tt, $category:expr) => {
-        $seed_resource.next_f64_in_range($min, $max, Some($category))
+    ($seed_resource:expr, $min:expr, $max:expr, $category:expr) => {
+        $seed_resource.next_f32_in_range($min as f32, $max as f32, Some($category))
     };
     // Exklusive Range ohne Kategorie
-    ($seed_resource:expr, $min:tt .. $max:tt) => {
-        $seed_resource.next_f64_in_range($min, $max, None)
+    ($seed_resource:expr, $min:expr, $max:expr) => {
+        $seed_resource.next_f32_in_range($min as f32, $max as f32, None)
     };
 }

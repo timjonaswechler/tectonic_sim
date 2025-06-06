@@ -9,7 +9,7 @@ impl Plugin for SeedPlugin {
             .add_event::<SeedChangedEvent>()
             // Für Bevy 0.10+ wäre es .add_systems(Update, seed_changed_event_handler);
             // Für ältere Versionen ist .add_system(seed_changed_event_handler) ok.
-            .add_system(seed_changed_event_handler);
+            .add_systems(Update, seed_changed_event_handler);
     }
 }
 
@@ -17,7 +17,7 @@ fn seed_changed_event_handler(
     mut events: EventReader<SeedChangedEvent>,
     mut seed_resource: ResMut<SeedResource>, // Hinzugefügt
 ) {
-    for event in events.iter() {
+    for event in events.read() {
         info!(
             "SeedResource wird aktualisiert wegen SeedChangedEvent: {}",
             event.new_seed
