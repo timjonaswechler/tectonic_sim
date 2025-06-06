@@ -7,7 +7,7 @@ pub fn setup_scene(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut sim_params: ResMut<sim::resources::SimulationParameters>,
+    sim_params: ResMut<sim::resources::SimulationParameters>,
 ) {
     // Kugel als Platzhalter für den Planeten
     commands.spawn(PbrBundle {

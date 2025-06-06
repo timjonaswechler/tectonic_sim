@@ -1,5 +1,4 @@
 // ./src/main.rs
-use bevy::gizmos::GizmoPlugin;
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
 use bevy_inspector_egui::quick::WorldInspectorPlugin; // Import für den Inspector
@@ -12,7 +11,6 @@ pub mod physics;
 pub mod setup; // Wird für Kamera-Setup und Szene verwendet
 
 // Importiere spezifische Elemente aus unseren Modulen
-use bevy::gizmos::prelude::GizmoConfig;
 use debug::{
     ui::*,
     visualization::{
@@ -20,10 +18,10 @@ use debug::{
         sphere_grid::draw_sphere_grid_gizmos,
     },
 };
-use egui_dock::{DockState, NodeIndex, Split, TabDestination, Tree};
+
 use math::probability::seed::plugin::SeedPlugin;
 use physics::sim::{
-    init::craton::init_craton,
+    init::craton::init_craton_voronoi_metaball,
     resources::*,
     state::*,
     systems::*,
@@ -53,7 +51,7 @@ fn main() {
             OnEnter(SimulationState::Initializing),
             (
                 setup_initial_world_conditions_system,
-                init_craton,
+                init_craton_voronoi_metaball,
                 // create_initial_snapshot wird jetzt in Startup aufgerufen, oder wir brauchen eine Variante für hier
             ),
         )
@@ -75,7 +73,7 @@ fn main() {
                 cleanup_simulation_entities_system,
                 clear_tick_history_system,             // History leeren
                 setup_initial_world_conditions_system, // SimParams (Zeiten) zurücksetzen
-                init_craton,                           // Kratone neu generieren
+                init_craton_voronoi_metaball,          // Kratone neu generieren
                 create_initial_snapshot,               // Initialen Snapshot für t=0 erstellen
             )
                 .chain(), // Wichtig für die Reihenfolge!
