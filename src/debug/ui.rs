@@ -1,22 +1,22 @@
 // ./src/debug/ui.rs
+use crate::math::probability::SeedResource;
 use crate::physics::sim::resources::SimulationParameters;
 use crate::physics::sim::state::SimulationState; // Importiere den State
 use crate::physics::sim::time::resources::{SimulationSnapshot, TickHistory};
 use bevy::prelude::*;
 use bevy_egui::{
     EguiContexts,
-    egui::{self, ScrollArea, Slider, Window},
+    egui::{self, Slider, Window},
 };
 
 pub fn simulation_control_ui_system(
     mut contexts: EguiContexts,
     mut sim_params: ResMut<SimulationParameters>,
-    mut history: ResMut<TickHistory>,
+    history: ResMut<TickHistory>,
     mut next_state: ResMut<NextState<SimulationState>>, // Für Zustandswechsel
     current_state: Res<State<SimulationState>>,         // Um aktuellen Zustand zu lesen
 ) {
     let mut seed_input = String::new();
-    let mut seed_resource = seed_resource.clone();
 
     Window::new("Simulationssteuerung")
         .default_width(350.0)
@@ -26,10 +26,10 @@ pub fn simulation_control_ui_system(
                 ui.label("Seed (Zahl oder Text):");
                 if ui.text_edit_singleline(&mut seed_input).lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                     // Seed setzen, je nach Eingabe
-                    if let Ok(num) = seed_input.parse::<u64>() {
-                        *seed_resource = SeedResource::from_seed(num);
+                    if let Ok(num) = seed_input.parse::<i32>() {
+                        sim_params.seed = SeedResource::from_seed(num);
                     } else if !seed_input.is_empty() {
-                        *seed_resource = SeedResource::from_text(&seed_input);
+                        sim_params.seed = SeedResource::from_text(&seed_input);
                     }
                     // TODO: Event senden (siehe unten)
                 }
