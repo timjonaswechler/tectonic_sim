@@ -5,12 +5,12 @@ use crate::math::error::MathResult;
 use bevy::math::Vec2;
 
 /// Trait für benutzerdefinierte Verzerrungsfunktionen
-pub trait DistortionFn: Send + Sync + std::fmt::Debug {
+pub trait PolygonDistortionFn: Send + Sync + std::fmt::Debug {
     fn transform(&self, point: Vec2, center: Vec2) -> Vec2;
-    fn clone_box(&self) -> Box<dyn DistortionFn + Send + Sync>;
+    fn clone_box(&self) -> Box<dyn PolygonDistortionFn + Send + Sync>;
 }
 
-impl Clone for Box<dyn DistortionFn + Send + Sync> {
+impl Clone for Box<dyn PolygonDistortionFn + Send + Sync> {
     fn clone(&self) -> Self {
         self.clone_box()
     }
@@ -18,7 +18,7 @@ impl Clone for Box<dyn DistortionFn + Send + Sync> {
 
 /// Verschiedene Verzerrungstypen
 #[derive(Debug, Clone)]
-pub enum DistortionType {
+pub enum PolygonDistortionType {
     /// Linsenverzerrung: factor * r²
     Barrel(f32),
     /// Kissenverzerrung: -factor * r²
@@ -32,39 +32,40 @@ pub enum DistortionType {
     /// Spiral-Verzerrung
     Spiral { strength: f32, center: Vec2 },
     /// Benutzerdefinierte Funktion
-    Custom(Box<dyn DistortionFn + Send + Sync + 'static>),
+    Custom(Box<dyn PolygonDistortionFn + Send + Sync + 'static>),
 }
 
 /// Trait für Verzerrungsoperationen
-pub trait Distortion {
+pub trait PolygonDistortion {
     /// Verzerrt einen einzelnen Punkt
-    fn distort_point(&self, point: Vec2, center: Vec2, params: DistortionType) -> Vec2;
+    fn distort_point(&self, point: Vec2, center: Vec2, params: PolygonDistortionType) -> Vec2;
 
     /// Verzerrt das gesamte Polygon
-    fn distort(&self, center: Vec2, params: DistortionType) -> MathResult<Polygon>;
+    fn distort(&self, center: Vec2, params: PolygonDistortionType) -> MathResult<Polygon>;
 
     /// Verzerrt das Polygon in-place
-    fn distort_mut(&mut self, center: Vec2, params: DistortionType) -> MathResult<()>;
+    fn distort_mut(&mut self, center: Vec2, params: PolygonDistortionType) -> MathResult<()>;
 }
 
-impl Distortion for Polygon {
-    fn distort_point(&self, point: Vec2, center: Vec2, params: DistortionType) -> Vec2 {
+impl PolygonDistortion for Polygon {
+    fn distort_point(&self, point: Vec2, center: Vec2, params: PolygonDistortionType) -> Vec2 {
         match params {
-            DistortionType::Barrel(strength) | DistortionType::Pincushion(strength) => {
+            PolygonDistortionType::Barrel(strength)
+            | PolygonDistortionType::Pincushion(strength) => {
                 let dx = point.x - center.x;
                 let dy = point.y - center.y;
                 let r2 = dx * dx + dy * dy;
 
                 let factor = match params {
-                    DistortionType::Barrel(_) => 1.0 + strength * r2,
-                    DistortionType::Pincushion(_) => 1.0 - strength * r2,
+                    PolygonDistortionType::Barrel(_) => 1.0 + strength * r2,
+                    PolygonDistortionType::Pincushion(_) => 1.0 - strength * r2,
                     _ => unreachable!(),
                 };
 
                 Vec2::new(center.x + dx * factor, center.y + dy * factor)
             }
 
-            DistortionType::Wave {
+            PolygonDistortionType::Wave {
                 amplitude,
                 frequency,
                 phase,
@@ -82,7 +83,7 @@ impl Distortion for Polygon {
                 )
             }
 
-            DistortionType::Spiral {
+            PolygonDistortionType::Spiral {
                 strength,
                 center: spiral_center,
             } => {
@@ -96,11 +97,11 @@ impl Distortion for Polygon {
                     spiral_center.y + r * angle.sin(),
                 )
             }
-            DistortionType::Custom(func) => func.transform(point, center),
+            PolygonDistortionType::Custom(func) => func.transform(point, center),
         }
     }
 
-    fn distort(&self, center: Vec2, params: DistortionType) -> MathResult<Polygon> {
+    fn distort(&self, center: Vec2, params: PolygonDistortionType) -> MathResult<Polygon> {
         let distorted_vertices: Vec<Vec2> = self
             .vertices()
             .iter()
@@ -114,7 +115,7 @@ impl Distortion for Polygon {
         }
     }
 
-    fn distort_mut(&mut self, center: Vec2, params: DistortionType) -> MathResult<()> {
+    fn distort_mut(&mut self, center: Vec2, params: PolygonDistortionType) -> MathResult<()> {
         let new_points: Vec<Vec2> = self
             .vertices()
             .iter()
@@ -129,11 +130,11 @@ impl Distortion for Polygon {
 }
 
 /// Erweiterte Verzerrungsfunktionen
-pub struct DistortionEffects;
+pub struct PolygonDistortionEffects;
 
-impl DistortionEffects {
+impl PolygonDistortionEffects {
     /// Sinusförmige Verzerrung entlang einer Achse
-    pub fn sine_wave(amplitude: f32, frequency: f32, axis: SineAxis) -> DistortionType {
+    pub fn sine_wave(amplitude: f32, frequency: f32, axis: SineAxis) -> PolygonDistortionType {
         #[derive(Debug)]
         struct SineWaveDistortion {
             amplitude: f32,
@@ -141,7 +142,7 @@ impl DistortionEffects {
             axis: SineAxis,
         }
 
-        impl DistortionFn for SineWaveDistortion {
+        impl PolygonDistortionFn for SineWaveDistortion {
             fn transform(&self, point: Vec2, _center: Vec2) -> Vec2 {
                 match self.axis {
                     SineAxis::X => Vec2::new(
@@ -155,12 +156,12 @@ impl DistortionEffects {
                 }
             }
 
-            fn clone_box(&self) -> Box<dyn DistortionFn + Send + Sync> {
+            fn clone_box(&self) -> Box<dyn PolygonDistortionFn + Send + Sync> {
                 Box::new(Self { ..*self })
             }
         }
 
-        DistortionType::Custom(Box::new(SineWaveDistortion {
+        PolygonDistortionType::Custom(Box::new(SineWaveDistortion {
             amplitude,
             frequency,
             axis,
@@ -168,14 +169,14 @@ impl DistortionEffects {
     }
 
     /// Turbulenz-ähnliche Verzerrung
-    pub fn turbulence(strength: f32, scale: f32) -> DistortionType {
+    pub fn turbulence(strength: f32, scale: f32) -> PolygonDistortionType {
         #[derive(Debug)]
         struct TurbulenceDistortion {
             strength: f32,
             scale: f32,
         }
 
-        impl DistortionFn for TurbulenceDistortion {
+        impl PolygonDistortionFn for TurbulenceDistortion {
             fn transform(&self, point: Vec2, _center: Vec2) -> Vec2 {
                 let noise_x = ((point.x * self.scale).sin() * (point.y * self.scale * 1.3).cos())
                     * self.strength;
@@ -183,22 +184,22 @@ impl DistortionEffects {
                     * self.strength;
                 Vec2::new(point.x + noise_x, point.y + noise_y)
             }
-            fn clone_box(&self) -> Box<dyn DistortionFn + Send + Sync> {
+            fn clone_box(&self) -> Box<dyn PolygonDistortionFn + Send + Sync> {
                 Box::new(Self { ..*self })
             }
         }
 
-        DistortionType::Custom(Box::new(TurbulenceDistortion { strength, scale }))
+        PolygonDistortionType::Custom(Box::new(TurbulenceDistortion { strength, scale }))
     }
 
     /// Magnetfeld-ähnliche Verzerrung
-    pub fn magnetic_field(poles: &[(Vec2, f32)]) -> DistortionType {
+    pub fn magnetic_field(poles: &[(Vec2, f32)]) -> PolygonDistortionType {
         #[derive(Debug, Clone)]
         struct MagneticFieldDistortion {
             poles: Vec<(Vec2, f32)>,
         }
 
-        impl DistortionFn for MagneticFieldDistortion {
+        impl PolygonDistortionFn for MagneticFieldDistortion {
             fn transform(&self, point: Vec2, _center: Vec2) -> Vec2 {
                 let mut total_force = Vec2::ZERO;
 
@@ -216,12 +217,12 @@ impl DistortionEffects {
 
                 point + total_force
             }
-            fn clone_box(&self) -> Box<dyn DistortionFn + Send + Sync> {
+            fn clone_box(&self) -> Box<dyn PolygonDistortionFn + Send + Sync> {
                 Box::new(self.clone())
             }
         }
 
-        DistortionType::Custom(Box::new(MagneticFieldDistortion {
+        PolygonDistortionType::Custom(Box::new(MagneticFieldDistortion {
             poles: poles.to_vec(),
         }))
     }
@@ -248,7 +249,7 @@ mod tests {
         .unwrap();
 
         let distorted = square
-            .distort(Vec2::ZERO, DistortionType::Barrel(0.1))
+            .distort(Vec2::ZERO, PolygonDistortionType::Barrel(0.1))
             .unwrap();
 
         // Barrel-Verzerrung sollte Punkte nach außen verschieben
@@ -270,7 +271,7 @@ mod tests {
         let distorted = line
             .distort(
                 Vec2::ZERO,
-                DistortionType::Wave {
+                PolygonDistortionType::Wave {
                     amplitude: 0.5,
                     frequency: 1.0,
                     phase: 0.0,

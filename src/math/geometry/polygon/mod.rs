@@ -23,7 +23,10 @@ pub use self::validation::{
 // Re-Exporte für Transformationen (wenn sie hier bleiben)
 pub use self::transformations::{
     affine::{AffineTransform, AffineTransformable, TransformBuilder as AffineTransformBuilder}, // Umbenannt, um Klarheit zu schaffen
-    distortion::{Distortion, DistortionEffects, DistortionFn, DistortionType, SineAxis},
+    distortion::{
+        PolygonDistortion, PolygonDistortionEffects, PolygonDistortionFn, PolygonDistortionType,
+        SineAxis,
+    },
     projection::{
         Complex as ProjectionComplex, ConformalType, Polygon2DProjector, Polygon3DProjector,
         Projection2DType, ProjectionBatch, ProjectionEffects as PolygonProjectionEffects,
