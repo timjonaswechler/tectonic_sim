@@ -87,8 +87,8 @@ pub fn init_craton_voronoi_metaball(
 
     let mut initial_bevy_points_for_voronoi: Vec<Vec2> = Vec::new();
     for _ in 0..100 {
-        let x = next_random_range!(seed_resource, bounds_2d.min.x, bounds_2d.max.x);
-        let y = next_random_range!(seed_resource, bounds_2d.min.y, bounds_2d.max.y);
+        let x = seed_resource.next_f32_in_range(bounds_2d.min.x, bounds_2d.max.x, None);
+        let y = seed_resource.next_f32_in_range(bounds_2d.min.y, bounds_2d.max.y, None);
         initial_bevy_points_for_voronoi.push(Vec2::new(x, y));
     }
 
@@ -123,7 +123,7 @@ pub fn init_craton_voronoi_metaball(
         );
         return;
     }
-
+    info!("Number of relaxed points: {}", relaxed_bevy_points.len());
     // 5. Erzeuge das 2D-Voronoi-Diagramm
     // Konvertiere Vec2 zu SpadePoint für DelaunayTriangulation
     let spade_points = bevy_to_spade_points(&relaxed_bevy_points);
@@ -151,7 +151,10 @@ pub fn init_craton_voronoi_metaball(
         );
         return;
     }
-
+    info!(
+        "Delaunay triangulation created with {} vertices.",
+        delaunay_triangulation.num_vertices(),
+    );
     let voronoi_cells: Vec<VoronoiCell> =
         match VoronoiExtractor::extract_cells(&delaunay_triangulation, Some(&bounds_2d)) {
             Ok(cells) => cells,

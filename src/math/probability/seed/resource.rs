@@ -72,7 +72,7 @@ impl SeedResource {
         let mut noise_gen = super::super::Noise::default(); // Noise::new()
         // Noise::set_seed erwartet Option<i32> nach unserer Anpassung
         noise_gen.set_seed(seed_val);
-        noise_gen.set_frequency(Some(1.0));
+        noise_gen.set_frequency(1.0);
         noise_gen.set_fractal_octaves(Some(1)); // u32
 
         Self {

@@ -68,7 +68,7 @@ impl Default for Noise {
     fn default() -> Self {
         Self {
             seed: 1337,
-            frequency: 0.01,
+            frequency: 1.0,
             noise_type: NoiseType::OpenSimplex2,
             rotation_type_3d: RotationType3D::None,
             transform_type_3d: TransformType3D::DefaultOpenSimplex2,
@@ -119,8 +119,8 @@ impl Noise {
     /// Sets frequency used for all noise types.
     ///
     /// If set to [`None`], it is reset to its default: `0.01`.
-    pub fn set_frequency(&mut self, frequency: Option<f32>) {
-        self.frequency = frequency.unwrap_or(Self::default().frequency);
+    pub fn set_frequency(&mut self, frequency: f32) {
+        self.frequency = frequency;
     }
 
     /// Sets noise algorithm used for [`get_noise_2d`](Self::get_noise_2d)/[`get_noise_3d`](Self::get_noise_3d).
