@@ -462,7 +462,7 @@ impl SphereUVMapper {
             } // -Z
         };
 
-        Vec2::new((u_raw + 1.0) * 0.5, (v_raw + 1.0) * 0.5); // Normalisiere auf [0,1]
+        let _ = Vec2::new((u_raw + 1.0) * 0.5, (v_raw + 1.0) * 0.5); // Normalisiere auf [0,1]
         (
             face_index,
             Vec2::new((u_raw + 1.0) * 0.5, (v_raw + 1.0) * 0.5),

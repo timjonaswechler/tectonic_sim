@@ -117,11 +117,6 @@ impl GeographicCoordinates {
         let total_radius = sphere_radius + self.altitude;
         let cos_lat = self.latitude.cos();
 
-        Vec3::new(
-            total_radius * cos_lat * self.longitude.cos(), // x
-            total_radius * cos_lat * self.longitude.sin(), // y (Achtung: Geographisch oft z als "oben")
-            total_radius * self.latitude.sin(),            // z (oder y, je nach Konvention)
-        );
         // Konvention hier: X nach vorne, Y nach links, Z nach oben (üblich in vielen 3D Systemen)
         // Geographisch: X zum Nullmeridian/Äquator, Y 90° Ost/Äquator, Z zum Nordpol
         // Umstellung auf gängige geographische Konvention (X=Nullmeridian, Y=90Ost, Z=Pol):

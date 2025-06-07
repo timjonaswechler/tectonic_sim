@@ -1,21 +1,22 @@
 // /Users/tim-jonaswechler/GitHub-Projekte/tectonic_sim/src/math/probability/seed/resource.rs
+use super::super::noise::Noise;
+use super::super::noise::NoiseType;
 use bevy::prelude::*;
+use bevy::utils::info;
 use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
-// Annahme: Float ist f32, wie in noise.rs definiert
-// use crate::math::probability::noise::noise::Float as NoiseFloat; // Pfad ggf. anpassen
 
-// Struktur, um den Zustand des Spiral-Cursors zu speichern
 #[derive(Debug, Clone, Copy)]
 struct SpiralCursor {
-    x: i32,            // Aktuelle diskrete X-Position auf dem Gitter
-    y: i32,            // Aktuelle diskrete Y-Position auf dem Gitter
-    dx: i32,           // Bewegungsrichtung X (1, 0, -1, 0)
-    dy: i32,           // Bewegungsrichtung Y (0, 1, 0, -1)
-    segment_len: i32,  // Aktuelle Länge des geraden Segments der Spirale
-    segment_pass: i32, // Wie viele Schritte im aktuellen Segment schon gemacht wurden
-    turn_counter: i32, // Zählt, wie oft schon abgebogen wurde in der aktuellen "Schicht" der Spirale
+    x: i32,
+    y: i32,
+    dx: i32,
+    dy: i32,
+    segment_len: i32,
+    segment_pass: i32,
+    turns_done: i32,
+    started: bool,
 }
 
 impl Default for SpiralCursor {
@@ -23,57 +24,66 @@ impl Default for SpiralCursor {
         Self {
             x: 0,
             y: 0,
-            dx: 1, // Startet mit Bewegung nach rechts
+            dx: 1,
             dy: 0,
             segment_len: 1,
             segment_pass: 0,
-            turn_counter: 0,
+            turns_done: 0,
+            started: false,
         }
     }
 }
 
 impl SpiralCursor {
-    /// Bewegt den Cursor zum nächsten Punkt auf der Spirale.
+    /// Gibt den aktuellen Punkt zurück und bewegt den Cursor zum nächsten Punkt der Spirale.
     fn next_point(&mut self) -> (i32, i32) {
-        let current_x = self.x;
-        let current_y = self.y;
+        // Sonderfall: zuerst (0, 0) zurückgeben
+        if !self.started {
+            self.started = true;
+            return (self.x, self.y);
+        }
 
+        // Bewegung ausführen
         self.x += self.dx;
         self.y += self.dy;
         self.segment_pass += 1;
 
+        // Segmentlänge erreicht → Drehen
         if self.segment_pass == self.segment_len {
             self.segment_pass = 0;
-            // Drehe gegen den Uhrzeigersinn
-            let temp_dx = self.dx;
-            self.dx = -self.dy;
-            self.dy = temp_dx;
-            self.turn_counter += 1;
-            if self.turn_counter == 2 {
-                // Nach zwei Drehungen (z.B. rechts -> hoch -> links)
-                self.turn_counter = 0;
-                self.segment_len += 1; // Verlängere das Segment
+            self.turns_done += 1;
+
+            // Drehung um 90° im Uhrzeigersinn
+            let new_dx = -self.dy;
+            let new_dy = self.dx;
+            self.dx = new_dx;
+            self.dy = new_dy;
+
+            // Nach zwei Drehungen wird das Segment länger
+            if self.turns_done == 2 {
+                self.turns_done = 0;
+                self.segment_len += 1;
             }
         }
-        (current_x, current_y)
+
+        (self.x, self.y)
     }
 }
 
-#[derive(Resource, Debug, Clone)]
+#[derive(Resource, Debug)]
 pub struct SeedResource {
     pub seed: u32,
-    pub probabilities: super::super::Noise,
+    pub probabilities: Noise,
     categorical_spiral_cursors: HashMap<String, SpiralCursor>,
     category_z_multiplier: f32,
 }
 
 impl SeedResource {
     pub fn from_seed(seed_val: i32) -> Self {
-        let mut noise_gen = super::super::Noise::default(); // Noise::new()
-        // Noise::set_seed erwartet Option<i32> nach unserer Anpassung
-        noise_gen.set_seed(seed_val);
-        noise_gen.set_frequency(1.0);
-        noise_gen.set_fractal_octaves(Some(1)); // u32
+        let mut noise_gen = Noise::default();
+        noise_gen.set_noise_type(Some(NoiseType::Value));
+        noise_gen.set_seed(Some(seed_val));
+        noise_gen.set_frequency(Some(1.0));
 
         Self {
             seed: seed_val as u32,
@@ -106,6 +116,10 @@ impl SeedResource {
         // super::super::noise::Float ist f32
         let value = self.probabilities.get_noise_3d(
             cx as f32, cy as f32, cz as f32, // cz ist schon f32
+        );
+        info!(
+            "Current point for category '{}'({}) is ({}, {}) = {}",
+            category, cz, cx, cy, value
         );
         value
     }
@@ -162,10 +176,6 @@ impl SeedResource {
             None => self.next_value_normalized(None), // Verwendet intern __default__
         };
         let range_size = (max - min) as f32;
-        // Durch `floor()` wird sichergestellt, dass der Wert niemals `max` erreicht.
-        // Beispiel: normalized_val = 0.999..., range_size = 10 (für [0, 10))
-        // 0.999... * 10 = 9.99... -> floor() -> 9. min + 9.
-        // Der maximale Wert ist also min + (max - min - epsilon) -> min + floor(range_size - epsilon_float)
         min + (normalized_val * range_size).floor() as i32
     }
 
@@ -179,7 +189,7 @@ impl SeedResource {
         }
         let normalized_val = match category_opt {
             Some(cat) => self.next_value_normalized(Some(cat)),
-            None => self.next_value_normalized(None), // Verwendet intern __default__
+            None => self.next_value_normalized(None),
         };
         let range_size = max - min;
         min + (normalized_val * range_size)
@@ -208,8 +218,11 @@ impl SeedResource {
     pub fn reset_with_new_seed(&mut self, new_seed_val: u32) {
         self.seed = new_seed_val;
         // Noise::set_seed erwartet Option<i32>
-        self.probabilities.set_seed(new_seed_val as i32);
+        self.probabilities.set_seed(Some(new_seed_val as i32));
+        self.probabilities.set_frequency(Some(1.0_f32));
+        self.probabilities.set_fractal_octaves(Some(1)); // u32
         self.categorical_spiral_cursors.clear();
+        self.categorical_spiral_cursors = HashMap::new();
     }
 }
 
@@ -225,8 +238,8 @@ impl Default for SeedResource {
 
 #[cfg(test)]
 mod tests {
+    use super::super::super::NoiseType;
     use super::*;
-    use crate::math::probability::NoiseType; // Zugriff auf NoiseType
 
     #[test]
     fn test_text_seed_consistency() {
