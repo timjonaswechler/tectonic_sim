@@ -117,10 +117,6 @@ impl SeedResource {
         let value = self.probabilities.get_noise_3d(
             cx as f32, cy as f32, cz as f32, // cz ist schon f32
         );
-        info!(
-            "Current point for category '{}'({}) is ({}, {}) = {}",
-            category, cz, cx, cy, value
-        );
         value
     }
 
