@@ -1,25 +1,50 @@
 // src/math/algorithms/smoothing/chaikin.rs
 
 use crate::math::{
-    algorithms::smoothing::traits::Smoothing, // Der angepasste Trait
+    algorithms::smoothing::traits::Smoothing,
     error::{MathError, MathResult},
-    utils::constants, // Für EPSILON
+    utils::constants,
 };
 use bevy::math::Vec2;
 
 /// Implementiert den Chaikin-Algorithmus zur Subdivision und Glättung von Linienzügen.
+///
+/// Der Chaikin-Algorithmus ist ein iteratives Verfahren, das einen Linienzug glättet,
+/// indem es die Ecken "abschneidet". In jeder Iteration werden für jede Kante des
+/// Linienzugs zwei neue Punkte erzeugt, die die ursprünglichen Punkte ersetzen.
+/// Dies führt zu einer Verdopplung der Punktanzahl (ungefähr) und einer
+/// glatteren Kurve.
 #[derive(Debug, Clone)]
 pub struct ChaikinSmoother {
     /// Anzahl der anzuwendenden Glättungsiterationen.
+    ///
+    /// Mehr Iterationen führen zu einer glatteren Kurve, aber auch zu einem
+    /// stärkeren "Schrumpfen" des ursprünglichen Linienzugs und einer höheren
+    /// Anzahl von Punkten.
     pub iterations: usize,
     /// Schnittverhältnis für neue Punkte auf Kanten (typischerweise 0.25 für Chaikin).
-    /// Ein Wert von 0.25 bedeutet, neue Punkte werden bei 25% und 75% der Kantenlänge gesetzt.
+    ///
+    /// Dieses Verhältnis bestimmt, wo die neuen Punkte auf einer Kante platziert werden.
+    /// Ein Wert von `r` bedeutet, dass neue Punkte bei `r` und `1-r` der Kantenlänge
+    /// von einem Endpunkt aus gesehen platziert werden. Für den Standard-Chaikin-Algorithmus
+    /// ist dieser Wert 0.25, was bedeutet, dass die neuen Punkte bei 25% und 75%
+    /// der Kantenlänge liegen. Der Wert muss im Bereich (0, 0.5) liegen.
     pub cut_ratio: f32,
-    /// Ob die Endpunkte eines offenen Linienzugs beibehalten werden sollen.
+    /// Ob die exakten Endpunkte eines offenen Linienzugs beibehalten werden sollen.
+    ///
+    /// Wenn `true`, bleiben der erste und letzte Punkt eines offenen Linienzugs
+    /// während des Glättungsprozesses unverändert. Bei geschlossenen Linienzügen
+    /// hat diese Einstellung keine Auswirkung.
     pub preserve_endpoints_for_open_paths: bool,
 }
 
 impl Default for ChaikinSmoother {
+    /// Erstellt eine Standardinstanz von `ChaikinSmoother`.
+    ///
+    /// Standardwerte:
+    /// - `iterations`: 1
+    /// - `cut_ratio`: 0.25
+    /// - `preserve_endpoints_for_open_paths`: true
     fn default() -> Self {
         Self {
             iterations: 1,
@@ -30,6 +55,11 @@ impl Default for ChaikinSmoother {
 }
 
 impl ChaikinSmoother {
+    /// Erstellt eine neue Instanz von `ChaikinSmoother` mit einer gegebenen Anzahl von Iterationen.
+    ///
+    /// # Arguments
+    ///
+    /// * `iterations` - Die Anzahl der Glättungsiterationen. Muss mindestens 1 sein.
     pub fn new(iterations: usize) -> Self {
         Self {
             iterations: iterations.max(1), // Mindestens eine Iteration
@@ -37,17 +67,37 @@ impl ChaikinSmoother {
         }
     }
 
+    /// Setzt das Schnittverhältnis für den Algorithmus.
+    ///
+    /// # Arguments
+    ///
+    /// * `ratio` - Das neue Schnittverhältnis. Wird auf den Bereich (epsilon, 0.5 - epsilon) geklemmt.
     pub fn with_cut_ratio(mut self, ratio: f32) -> Self {
         self.cut_ratio = ratio.clamp(0.0 + constants::EPSILON, 0.5 - constants::EPSILON); // Muss zwischen (0, 0.5) liegen
         self
     }
 
+    /// Legt fest, ob die Endpunkte offener Pfade erhalten bleiben sollen.
+    ///
+    /// # Arguments
+    ///
+    /// * `preserve` - `true`, um Endpunkte zu erhalten, `false` andernfalls.
     pub fn preserve_endpoints(mut self, preserve: bool) -> Self {
         self.preserve_endpoints_for_open_paths = preserve;
         self
     }
 
-    /// Führt eine einzelne Iteration des Chaikin-Algorithmus durch.
+    /// Führt eine einzelne Iteration des Chaikin-Algorithmus auf einem gegebenen Satz von Punkten durch.
+    ///
+    /// # Arguments
+    ///
+    /// * `points` - Der Linienzug, der geglättet werden soll.
+    /// * `is_closed` - `true`, wenn der Linienzug geschlossen ist, `false` andernfalls.
+    /// * `preserve_open_endpoints` - `true`, wenn die Endpunkte eines offenen Linienzugs erhalten bleiben sollen.
+    ///
+    /// # Returns
+    ///
+    /// Ein neuer Linienzug, der das Ergebnis einer Chaikin-Iteration darstellt.
     fn chaikin_iteration_on_points(
         &self,
         points: &[Vec2],
@@ -78,102 +128,67 @@ impl ChaikinSmoother {
             let p1 = points[i];
             let p2 = points[(i + 1) % n]; // %n für Umlauf bei geschlossenen Pfaden
 
-            // Zwei neue Punkte auf der Kante (p1, p2)
-            // q_i = (1-ratio)*p_i + ratio*p_{i+1}
-            // r_i = ratio*p_i + (1-ratio)*p_{i+1}
-            // Vertauscht im Originalcode: (1-ratio) ist der größere Anteil.
-            // Standard Chaikin: 1/4 und 3/4 => ratio = 0.25
-            // q_i: näher an p1, r_i: näher an p2 (wenn ratio < 0.5)
             let point_q = p1.lerp(p2, self.cut_ratio);
             let point_r = p1.lerp(p2, 1.0 - self.cut_ratio);
-
-            // Für Chaikin (Standard cut_ratio=0.25):
-            // Erster neuer Punkt ist bei 0.75*P_i + 0.25*P_{i+1} (wenn man von P_i ausgeht)
-            // Zweiter neuer Punkt ist bei 0.25*P_i + 0.75*P_{i+1}
-            // Deine alte Logik: p1 + (p2 - p1) * ratio  => (1-ratio)p1 + ratio*p2
-            //                  p1 + (p2 - p1) * (1-ratio) => ratio*p1 + (1-ratio)p2
-            // Das ist korrekt.
 
             if is_closed {
                 smoothed_points.push(point_q);
                 smoothed_points.push(point_r);
             } else {
                 // Bei offenen Pfaden:
-                // Für das erste Segment (i=0), wenn Endpunkte nicht erhalten werden, beide Punkte hinzufügen.
-                // Für mittlere Segmente, beide Punkte.
-                // Für das letzte Segment, wenn Endpunkte nicht erhalten, beide Punkte.
-                // Mit preserve_endpoints:
-                //  - erster Punkt schon drin
-                //  - letztes Segment (i = n-2): p1 ist points[n-2], p2 ist points[n-1]
-                //    point_q wird hinzugefügt. point_r wird zum neuen Endpunkt (points[n-1])
                 if i == 0 && !preserve_open_endpoints {
+                    // Wenn Endpunkte nicht erhalten werden, den originalen Startpunkt hinzufügen,
+                    // bevor die neuen Punkte der ersten Kante kommen.
                     smoothed_points.push(points[0]);
-                } // Startpunkt falls nicht preserved
+                }
 
                 smoothed_points.push(point_q);
 
-                // Nur point_r hinzufügen, wenn es nicht das vorletzte Segment ist,
-                // bei dem der Endpunkt (p2) erhalten bleibt.
+                // Den zweiten Punkt (point_r) nur hinzufügen, wenn es nicht das letzte Segment ist UND Endpunkte erhalten bleiben,
+                // ODER wenn Endpunkte nicht erhalten bleiben (dann immer beide hinzufügen).
                 if i < num_segments - 1 || !preserve_open_endpoints {
                     smoothed_points.push(point_r);
                 }
 
                 if i == num_segments - 1 && !preserve_open_endpoints {
-                    smoothed_points.push(points[n - 1]);
-                } // Endpunkt falls nicht preserved
-            }
-        }
-
-        if !is_closed && preserve_open_endpoints && n > 1 {
-            // Letzten Punkt bei offenen Pfaden beibehalten, falls noch nicht durch point_r abgedeckt
-            if smoothed_points.last() != Some(&points[n - 1]) {
-                // Wenn das letzte `point_r` (aus Segment n-2 zu n-1) nicht der Endpunkt war, füge Endpunkt hinzu.
-                // Das passiert, wenn preserve_open_endpoints true ist und i < num_segments -1 nicht zutraf.
-                // Korrekterweise:
-                // Wenn preserve_open_endpoints, dann ist der erste Punkt schon drin.
-                // Die Schleife geht bis num_segments.
-                // Das letzte p2 ist points[n-1]. Der letzte point_r ist vom Segment (n-2, n-1).
-                // Dieser point_r sollte eigentlich nicht der Endpunkt sein.
-                // Die Logik ist etwas knifflig.
-                // Alternative für offene Pfade mit Erhaltung:
-                // 1. smoothed_points.push(points[0])
-                // 2. for i in 0..n-1:
-                //    p1 = points[i], p2 = points[i+1]
-                //    q = p1.lerp(p2, ratio)
-                //    r = p1.lerp(p2, 1-ratio)
-                //    if i > 0: smoothed_points.push(q) // q von vorheriger Kante ist schon drin
-                //    else: smoothed_points.push(q) // Für die erste Kante
-                //    smoothed_points.push(r)
-                // 3. smoothed_points.push(points[n-1])
-                // Diese Logik muss angepasst werden, um Duplikate zu vermeiden.
-
-                // Einfachere Logik für preserve_endpoints_for_open_paths:
-                // Die Iteration erzeugt eine neue Punktmenge. Wenn `preserve_endpoints_for_open_paths` true ist,
-                // werden der erste und letzte Punkt der *Originalmenge* als erster und letzter Punkt
-                // der *neuen Menge* gesetzt, nachdem die Iteration auf den *inneren* Punkten lief.
-                // Die aktuelle Implementierung mit `smoothed_points.push(points[0]);` am Anfang ist ein Teil davon.
-                // Am Ende: `smoothed_points.push(points[n-1]);`
-                // Dazwischen die Logik für die inneren Kanten.
-
-                // Korrigierte Logik für offenen Pfad mit Endpunkterhaltung:
-                if n > 1
-                    && smoothed_points.last().map_or(true, |last_v| {
-                        last_v.distance_squared(points[n - 1]) > constants::EPSILON_SQUARED
-                    })
-                {
+                    // Wenn Endpunkte nicht erhalten werden, den originalen Endpunkt hinzufügen,
+                    // nachdem die neuen Punkte der letzten Kante hinzugefügt wurden.
                     smoothed_points.push(points[n - 1]);
                 }
             }
         }
 
-        // Bei geschlossenen Polygonen: Der erste Punkt der Iteration (aus Kante 0->1)
-        // und der letzte Punkt (aus Kante n-1 -> 0) sollten zusammenfallen oder nahe sein.
-        // Die Polygon::closed() Methode behandelt das Schließen später.
+        if !is_closed && preserve_open_endpoints && n > 1 {
+            // Sicherstellen, dass der letzte Originalpunkt enthalten ist, wenn er erhalten bleiben soll.
+            // Dies ist notwendig, da die Schleife point_r für das letzte Segment möglicherweise nicht hinzufügt.
+            if smoothed_points.last().map_or(true, |last_v| {
+                last_v.distance_squared(points[n - 1]) > constants::EPSILON_SQUARED
+            }) {
+                // Nur hinzufügen, wenn der letzte Punkt nicht bereits der Endpunkt ist.
+                smoothed_points.push(points[n - 1]);
+            } else if let Some(last_v) = smoothed_points.last_mut() {
+                // Wenn der letzte Punkt sehr nah am Endpunkt ist, ihn exakt setzen.
+                *last_v = points[n - 1];
+            }
+        }
         smoothed_points
     }
 }
 
 impl Smoothing for ChaikinSmoother {
+    /// Glättet eine Sequenz von Punkten unter Verwendung des Chaikin-Algorithmus.
+    ///
+    /// Führt die konfigurierte Anzahl von Iterationen des Algorithmus durch.
+    ///
+    /// # Arguments
+    ///
+    /// * `points` - Der Linienzug (Slice von `Vec2`), der geglättet werden soll.
+    /// * `is_closed` - `true`, wenn der Linienzug geschlossen ist, `false` andernfalls.
+    ///
+    /// # Returns
+    ///
+    /// Ein `MathResult` mit dem geglätteten Linienzug (`Vec<Vec2>`) oder einem `MathError`,
+    /// falls nicht genügend Punkte vorhanden sind.
     fn smooth_points(&self, points: &[Vec2], is_closed: bool) -> MathResult<Vec<Vec2>> {
         let n = points.len();
         if (is_closed && n < 3) || (!is_closed && n < 2) {
@@ -201,10 +216,16 @@ impl Smoothing for ChaikinSmoother {
         Ok(current_vertices)
     }
 
+    /// Gibt an, ob der Chaikin-Smoother mehrere Iterationen unterstützt.
+    ///
+    /// # Returns
+    ///
+    /// `true`, da Chaikin ein iterativer Algorithmus ist.
     fn supports_iterations(&self) -> bool {
         true
     }
 
-    // estimate_iterations_for_polygon kann die Standardimplementierung aus dem Trait verwenden
-    // oder hier spezifischer werden, z.B. basierend auf der gewünschten Glattheit vs. Detailerhalt.
+    // estimate_iterations_for_polygon kann die Standardimplementierung aus dem Trait verwenden.
+    // Eine spezifischere Implementierung könnte hier basierend auf der gewünschten Glattheit
+    // oder dem Detailerhalt erfolgen, eventuell unter Berücksichtigung der Polygon-Komplexität.
 }

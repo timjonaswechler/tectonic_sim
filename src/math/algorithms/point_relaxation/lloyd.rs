@@ -15,24 +15,33 @@ use crate::math::{
 use bevy::math::Vec2;
 use spade::{DelaunayTriangulation, Triangulation as SpadeTriangulation}; // SpadeTriangulation für insert etc.
 
-/// Konfiguration für den Lloyd-Relaxationsalgorithmus.
+/// Configuration for the Lloyd's relaxation algorithm.
+///
+/// This struct holds parameters that control the behavior of the
+/// relaxation process, such as termination conditions and how
+/// points near the boundaries are handled.
 #[derive(Debug, Clone)]
 pub struct LloydConfig {
+    /// The maximum number of iterations the algorithm will perform.
+    /// The relaxation will stop after this many iterations, even if
+    /// convergence has not been reached.
     pub max_iterations: usize,
-    pub convergence_tolerance_sq: f32, // Quadratische Toleranz für Effizienz
+    /// The squared convergence tolerance. If the maximum squared distance
+    /// any point moves in a single iteration is less than this value,
+    /// the algorithm is considered to have converged. Using squared
+    /// tolerance avoids a square root calculation in the main loop,
+    /// improving efficiency.
+    pub convergence_tolerance_sq: f32,
+    /// Defines the strategy for handling points that are moved
+    /// outside the specified boundaries during relaxation.
     pub boundary_handling: BoundaryHandling,
 }
-
-/// Strategien für die Behandlung von Punkten an den Grenzen während der Lloyd-Relaxation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BoundaryHandling {
-    Mirror,
-    Clamp,
-    Wrap,
-    // Fixed (wurde entfernt, da schwer allgemein zu implementieren)
-}
-
 impl Default for LloydConfig {
+    /// Provides default settings for `LloydConfig`.
+    ///
+    /// - `max_iterations`: 15
+    /// - `convergence_tolerance_sq`: (1e-4 * 1e-4) (i.e., 1e-8)
+    /// - `boundary_handling`: `BoundaryHandling::Clamp`
     fn default() -> Self {
         Self {
             max_iterations: 15,
@@ -42,35 +51,83 @@ impl Default for LloydConfig {
     }
 }
 
-/// Führt Lloyd-Relaxation auf einer Menge von 2D-Punkten durch,
-/// um deren Verteilung gleichmäßiger zu gestalten.
+/// Defines strategies for handling points that move outside the
+/// specified boundaries during Lloyd's relaxation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BoundaryHandling {
+    /// Points moved outside the boundary are mirrored back into the
+    /// boundary across the edge they crossed. For example, if a point
+    /// `(x, y)` crosses the `min_x` boundary, its new x-coordinate
+    /// becomes `min_x + (min_x - x)`.
+    Mirror,
+    /// Points moved outside the boundary are clamped to the nearest
+    /// point on the boundary edge. For example, if `x` becomes less
+    /// than `boundary.min.x`, it is set to `boundary.min.x`.
+    Clamp,
+    /// Points moved outside the boundary are wrapped around to the
+    /// opposite side. For example, if a point crosses the `max_x`
+    /// boundary, it reappears at the `min_x` boundary (offset by
+    /// how far it went beyond `max_x`). This creates a toroidal
+    /// (doughnut-shaped) space.
+    Wrap,
+}
+
+/// Performs Lloyd's relaxation algorithm on a set of 2D points to
+/// distribute them more evenly within specified boundaries.
+///
+/// Lloyd's algorithm iteratively moves each point to the centroid of its
+/// Voronoi cell. This process is repeated until the points converge to
+/// stable positions or a maximum number of iterations is reached.
+///
+/// The relaxation process helps in achieving a more uniform spatial
+/// distribution of points, which is useful in various applications like
+/// mesh generation, procedural content generation, and data visualization.
 pub struct LloydRelaxation {
     config: LloydConfig,
 }
 
-/// Statistiken, die während einer Lloyd-Relaxationsdurchlauf gesammelt werden.
-#[derive(Debug, Clone, Default)]
-pub struct LloydRelaxationStats {
-    pub iterations_performed: usize,
-    pub total_movement_last_iteration: f32,
-    pub max_movement_last_iteration: f32,
-    pub converged: bool,
-    // Optional: Detailliertere Statistiken pro Iteration
-    // pub iteration_details: Vec<LloydIterationDetailStats>,
-}
-
-// #[derive(Debug, Clone)]
-// pub struct LloydIterationDetailStats { /* ... */ }
-
 impl LloydRelaxation {
+    /// Creates a new `LloydRelaxation` instance with the given configuration.
+    ///
+    /// # Arguments
+    ///
+    /// * `config`: Configuration parameters for the Lloyd's relaxation algorithm,
+    ///             such as the maximum number of iterations, convergence tolerance,
+    ///             and boundary handling strategy.
     pub fn new(config: LloydConfig) -> Self {
         Self { config }
     }
 
-    /// Wendet Lloyd-Relaxation auf die gegebenen Punkte innerhalb der spezifizierten Grenzen an.
-    /// `initial_points`: Die Startpunkte.
-    /// `boundary`: Die Grenzen, innerhalb derer die Relaxation stattfindet.
-    /// Gibt die relaxierten Punkte und Statistiken zurück.
+    /// Applies Lloyd's relaxation to the given set of points within the specified boundaries.
+    ///
+    /// The algorithm proceeds as follows:
+    /// 1. A Delaunay triangulation is constructed from the current set of points.
+    /// 2. For each point, its Voronoi cell is determined (the region of space closer to this
+    ///    point than to any other). The Voronoi cell is implicitly defined by the
+    ///    circumcenters of the Delaunay triangles connected to the point.
+    /// 3. Each point is moved to the centroid (geometric center) of its Voronoi cell.
+    /// 4. Boundary handling is applied to points that move outside the specified `boundary`.
+    /// 5. Steps 1-4 are repeated until the maximum number of iterations is reached,
+    ///    or the movement of points between iterations falls below a convergence tolerance.
+    ///
+    /// # Arguments
+    ///
+    /// * `initial_points`: A slice of `Vec2` representing the initial positions of the points
+    ///                     to be relaxed. At least 3 points are required for a non-degenerate
+    ///                     Delaunay triangulation.
+    /// * `boundary`: A `Bounds2D` defining the rectangular region within which the
+    ///               relaxation should occur. Points moved outside these bounds will be
+    ///               handled according to the `BoundaryHandling` strategy in `LloydConfig`.
+    ///
+    /// # Returns
+    ///
+    /// A `MathResult` containing:
+    /// * On success: A tuple `(Vec<Vec2>, LloydRelaxationStats)`, where:
+    ///     * The `Vec<Vec2>` contains the new positions of the points after relaxation.
+    ///     * `LloydRelaxationStats` provides statistics about the relaxation process,
+    ///       such as the number of iterations performed and whether convergence was achieved.
+    /// * On failure: A `MathError`, for example, if fewer than 3 initial points are provided
+    ///               or if the `boundary` is invalid.
     pub fn relax_points(
         &self,
         initial_points: &[Vec2],
@@ -303,7 +360,50 @@ impl LloydRelaxation {
     }
 }
 
-/// Berechnet den Zentroid eines Polygons, das durch SpadePoints definiert ist.
+/// Collects statistics during a Lloyd's relaxation run.
+///
+/// This struct provides information about the execution of the
+/// relaxation algorithm, such as how many iterations were performed,
+/// the extent of point movement in the final iteration, and whether
+/// the process converged.
+#[derive(Debug, Clone, Default)]
+pub struct LloydRelaxationStats {
+    /// The total number of iterations performed by the algorithm.
+    pub iterations_performed: usize,
+    /// The average (RMS) distance points moved in the last completed iteration.
+    /// This is calculated as the square root of the mean of the squared distances.
+    /// If no points moved or no valid points were present, this will be 0.0.
+    pub total_movement_last_iteration: f32,
+    /// The maximum distance any single point moved in the last completed iteration.
+    pub max_movement_last_iteration: f32,
+    /// A boolean flag indicating whether the algorithm converged to a stable
+    /// state (i.e., `max_movement_last_iteration` fell below
+    /// `config.convergence_tolerance_sq`).
+    pub converged: bool,
+    // Optional: Detailliertere Statistiken pro Iteration
+    // pub iteration_details: Vec<LloydIterationDetailStats>,
+}
+
+/// Calculates the geometric centroid of a polygon defined by a slice of `SpadePoint` vertices.
+///
+/// The vertices are assumed to be ordered (either clockwise or counter-clockwise).
+/// The formula used is based on decomposing the polygon into triangles from a common origin
+/// (implicitly (0,0) here due to the cross product formulation) and summing their
+/// signed areas and area-weighted centroids.
+///
+/// See: [Centroid of Polygon - Wikipedia](https://en.wikipedia.org/wiki/Centroid#Of_a_polygon)
+///
+/// # Arguments
+///
+/// * `polygon_vertices`: A slice of `SpadePoint` representing the ordered vertices of the polygon.
+///
+/// # Returns
+///
+/// * `Some(SpadePoint)` containing the coordinates of the centroid if the polygon is valid
+///   (i.e., has at least 3 vertices and a non-zero area).
+/// * `None` if the polygon has fewer than 3 vertices.
+/// * If the polygon is degenerate (e.g., all points are collinear, resulting in zero area),
+///   it returns the arithmetic mean of the vertices as a fallback.
 fn calculate_polygon_centroid_spade(polygon_vertices: &[SpadePoint]) -> Option<SpadePoint> {
     let n = polygon_vertices.len();
     if n < 3 {
