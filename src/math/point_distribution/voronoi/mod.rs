@@ -3,6 +3,7 @@
 // Deklaration der Untermodule für Voronoi-spezifische Funktionalität
 pub mod builder;
 pub mod config; // Enthält VoronoiConfig (und LloydConfig, falls es dort bleibt)
+pub mod error;
 pub mod merger;
 pub mod voronoi_diagram; // Enthält VoronoiCell, VoronoiEdge, VoronoiDiagram, VoronoiExtractor
 

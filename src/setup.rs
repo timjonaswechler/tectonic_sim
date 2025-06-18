@@ -15,7 +15,7 @@ pub fn setup_scene(
         material: materials.add(StandardMaterial {
             base_color: Color::rgb(0.3, 0.5, 0.3),
             metallic: 0.2,
-            perceptual_roughness: 0.7,
+            perceptual_roughness: 0.07,
             ..default()
         }),
         transform: Transform::from_xyz(0.0, 0.0, 0.0),
@@ -49,7 +49,7 @@ pub fn setup_scene(
     ));
     // --- Test-Pfeile spawnen ---
     // Pfeil am Nordpol
-    let north_pole_origin = Vec3::new(0.0, sim_params.planet_radius_km, 0.0);
+    let north_pole_origin = Vec3::new(0.0, 1.0, 0.0);
     commands.spawn(NormalArrowVisual {
         origin: north_pole_origin,
         direction: north_pole_origin.normalize(), // Normale ist der normalisierte Vektor vom Kugelzentrum zum Punkt

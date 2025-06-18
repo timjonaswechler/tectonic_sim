@@ -123,6 +123,8 @@ impl SphereProjector {
                 self.unproject_equirectangular(scaled_point_2d)
             }
             SphereProjectionType::Mercator => self.unproject_mercator(scaled_point_2d),
+            SphereProjectionType::LambertAzimuthal { center_on_sphere } => self
+                .unproject_lambert_azimuthal(scaled_point_2d, center_on_sphere.normalize_or_zero()),
             // TODO: Implement inverse for other projections if needed
             _ => Err(MathError::InvalidConfiguration {
                 message: "Inverse projection not implemented for this projection type".to_string(),
@@ -337,7 +339,72 @@ impl SphereProjector {
             self.sphere_radius * k_prime * point.dot(v_axis.normalize_or_zero()),
         ))
     }
+    fn unproject_lambert_azimuthal(
+        &self,
+        point_2d: Vec2,
+        center_on_sphere: Vec3,
+    ) -> MathResult<Vec3> {
+        let r_sphere = self.sphere_radius;
+        let x_proj = point_2d.x;
+        let y_proj = point_2d.y;
 
+        let rho_sq = x_proj * x_proj + y_proj * y_proj;
+        if rho_sq > (2.0 * r_sphere).powi(2) + constants::EPSILON {
+            // Punkte außerhalb des max. proj. Radius (2R)
+            return Err(MathError::InvalidConfiguration {
+                message: "Point is outside the valid domain for Lambert Azimuthal unprojection"
+                    .to_string(),
+            });
+        }
+
+        let rho = rho_sq.sqrt();
+        if rho < constants::EPSILON {
+            // Punkt ist im Projektionszentrum
+            return Ok(center_on_sphere.normalize_or_zero() * r_sphere);
+        }
+
+        // c ist der Winkelabstand vom Projektionszentrum zum Punkt auf der Kugel
+        // Für Lambert Azimuthal Equal Area: rho = 2 * R * sin(c/2)
+        // Also sin(c/2) = rho / (2 * R)
+        // c/2 = asin(rho / (2 * R))
+        // c = 2 * asin(rho / (2 * R))
+        let c_half = (rho / (2.0 * r_sphere)).clamp(-1.0, 1.0); // Clamp für asin
+        let c = 2.0 * c_half.asin();
+
+        // Sinus und Kosinus von c
+        let sin_c = c.sin();
+        let cos_c = c.cos();
+
+        // Geographische Koordinaten des Projektionszentrums (lat0, lon0)
+        // center_on_sphere muss auf geografische Koordinaten umgerechnet werden.
+        // Annahme: SphereProjector speichert center_on_sphere als Vec3 auf der Kugeloberfläche.
+        // Konvertiere center_on_sphere zu sphärischen Koordinaten, dann zu geographischen.
+        let geo_center = GeographicCoordinates::from_cartesian(center_on_sphere, r_sphere);
+        let lat0 = geo_center.latitude;
+        let lon0 = geo_center.longitude;
+        let cos_lat0 = lat0.cos();
+        let sin_lat0 = lat0.sin();
+
+        // Inverse Formeln (aus https://mathworld.wolfram.com/LambertAzimuthalEqual-AreaProjection.html oder ähnlichen Quellen)
+        // lat = asin(cos(c) * sin(lat0) + (y_proj * sin(c) * cos(lat0)) / rho)
+        // lon = lon0 + atan2(x_proj * sin(c), rho * cos(lat0) * cos(c) - y_proj * sin(lat0) * sin(c))
+
+        let latitude = (cos_c * sin_lat0 + (y_proj * sin_c * cos_lat0) / rho)
+            .clamp(-1.0, 1.0)
+            .asin();
+
+        let lon_denom = rho * cos_lat0 * cos_c - y_proj * sin_lat0 * sin_c;
+        let longitude = if lon_denom.abs() < constants::EPSILON
+            && (x_proj * sin_c).abs() < constants::EPSILON
+        {
+            lon0 // Wenn sowohl Zähler als auch Nenner für atan2 klein sind, ist der Winkel unbestimmt -> nimm lon0
+        } else {
+            lon0 + (x_proj * sin_c).atan2(lon_denom)
+        };
+
+        let result_geo = GeographicCoordinates::new(latitude, longitude, 0.0); // Altitude 0
+        Ok(result_geo.to_cartesian(r_sphere))
+    }
     fn project_gnomonic(&self, point: Vec3, center_on_sphere: Vec3) -> MathResult<Vec2> {
         let cos_c = point.normalize().dot(center_on_sphere);
         if cos_c <= constants::EPSILON {

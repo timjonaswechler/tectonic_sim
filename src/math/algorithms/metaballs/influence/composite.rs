@@ -1,5 +1,3 @@
-// src/math/geometry/metalballs/influence/composite.rs
-
 use super::FieldInfluence;
 use crate::math::types::Bounds2D; // Unser Bounds2D
 use bevy::math::Vec2;

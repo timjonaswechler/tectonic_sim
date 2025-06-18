@@ -1,0 +1,406 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="800" height="800" viewBox="-50 -50 100 100" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .background { fill: #f0f0f0; }
+    .display-bounds { fill: none; stroke: #cccccc; stroke-width: 0.2; stroke-dasharray: 5,5; }
+    .clip-bounds { fill: none; stroke: #888888; stroke-width: 0.2; stroke-dasharray: 2,2; }
+    .initial-point { fill: #ffaaaa; stroke: #cc0000; stroke-width: 0.2; }
+    .relaxed-point { fill: #aaccff; stroke: #0000cc; stroke-width: 0.2; }
+    .raw-voronoi-cell { fill: rgba(255, 220, 150, 0.3); stroke: #ffaa00; stroke-width: 0.2; }
+    .clipped-voronoi-cell { fill: rgba(150, 255, 150, 0.5); stroke: #00aa00; stroke-width: 0.5; }
+    .merged-polygon { fill: rgba(200, 150, 255, 0.7); stroke: #5500aa; stroke-width: 0.5; }
+    /* NEU: Stil für die Koordinaten der gemergten Polygone */
+    .merged-polygon-coord { 
+        font-family: monospace; 
+        font-size: 0.360px; 
+        fill: #000000; 
+        stroke: white; 
+        stroke-width: 0.036px; 
+        paint-order: stroke fill;
+        text-anchor: middle; /* Text horizontal zentrieren */
+        dominant-baseline: middle; /* Text vertikal zentrieren */
+    }
+  </style>
+  <rect x="-50" y="-50" width="100" height="100" class="background" />
+  <rect x="-50" y="-50" width="100" height="100" class="display-bounds" />
+  <polygon points="-6.676,-66.441 -15.295,-55.178 -19.299,-53.977 -20.648,-54.324" class="raw-voronoi-cell" />
+  <polygon points="-42.741,-66.931 -53.231,-49.783 -68.630,-46.850" class="raw-voronoi-cell" />
+  <polygon points="40.502,49.352 45.890,51.625 45.781,114.364 30.308,58.343" class="raw-voronoi-cell" />
+  <polygon points="1.498,-10.615 11.920,-17.727 14.551,-17.663 16.434,-8.251 11.403,-0.632 2.280,-0.978" class="raw-voronoi-cell" />
+  <polygon points="-42.741,-66.931 -25.485,-54.623 -28.242,-54.064" class="raw-voronoi-cell" />
+  <polygon points="40.341,28.478 51.567,18.823 56.467,23.251 59.120,29.111 47.773,36.240 43.028,35.537" class="raw-voronoi-cell" />
+  <polygon points="11.521,-37.024 14.191,-42.426 14.454,-42.564 29.113,-37.311 30.848,-32.202 18.750,-23.410" class="raw-voronoi-cell" />
+  <polygon points="2.623,-33.443 11.521,-37.024 18.750,-23.410 17.887,-20.506 14.551,-17.663 11.920,-17.727 0.698,-26.932" class="raw-voronoi-cell" />
+  <polygon points="50.953,15.265 55.994,8.233 70.168,13.947 56.467,23.251 51.567,18.823" class="raw-voronoi-cell" />
+  <polygon points="-6.676,-66.441 13.130,-61.013 3.241,-56.757" class="raw-voronoi-cell" />
+  <polygon points="34.419,-12.165 34.417,-12.407 41.066,-22.251 55.011,-18.857 55.167,-3.586 43.760,-2.300" class="raw-voronoi-cell" />
+  <polygon points="66.608,33.514 55.817,49.533 56.003,47.005" class="raw-voronoi-cell" />
+  <polygon points="3.241,-56.757 13.130,-61.013 20.514,-54.838 14.454,-42.564 14.191,-42.426 2.427,-50.493" class="raw-voronoi-cell" />
+  <polygon points="-20.648,-54.324 -25.485,-54.623" class="raw-voronoi-cell" />
+  <polygon points="42.731,-53.090 218.535,-112.371 58.197,-37.490 48.593,-40.769" class="raw-voronoi-cell" />
+  <polygon points="56.224,-2.476 70.168,13.947 55.994,8.233" class="raw-voronoi-cell" />
+  <polygon points="-13.166,-36.752 -5.110,-40.886 2.623,-33.443 0.698,-26.932 -5.191,-23.716 -12.999,-28.385" class="raw-voronoi-cell" />
+  <polygon points="-9.054,30.573 -1.873,29.109 -0.315,30.040 -0.338,43.913 -4.787,45.080 -12.911,38.556" class="raw-voronoi-cell" />
+  <polygon points="33.401,4.880 39.314,5.143 42.076,11.641 34.104,18.746 33.187,18.467 28.044,11.341" class="raw-voronoi-cell" />
+  <polygon points="-30.341,17.114 -25.726,11.304 -12.907,15.484 -16.456,24.223 -20.623,25.576" class="raw-voronoi-cell" />
+  <polygon points="-19.192,59.747 -11.277,55.447 -10.913,55.449 -8.757,57.259" class="raw-voronoi-cell" />
+  <polygon points="21.481,4.001 26.995,-3.175 33.401,4.880 28.044,11.341 25.308,11.111" class="raw-voronoi-cell" />
+  <polygon points="-5.191,-23.716 0.698,-26.932 11.920,-17.727 1.498,-10.615 -6.362,-15.175" class="raw-voronoi-cell" />
+  <polygon points="-48.613,41.299 -33.511,40.426 -30.534,45.686 -39.081,56.267 -50.126,53.414" class="raw-voronoi-cell" />
+  <polygon points="-19.299,-53.977 -15.295,-55.178 -4.136,-46.052 -5.110,-40.886 -13.166,-36.752 -17.782,-39.374" class="raw-voronoi-cell" />
+  <polygon points="10.814,23.187 20.427,21.967 22.817,24.138 24.463,32.497 24.411,32.624 12.064,34.291 7.898,29.328" class="raw-voronoi-cell" />
+  <polygon points="4.775,46.270 10.646,44.019 14.787,46.214 17.620,56.502 16.342,57.617 5.636,62.296 4.212,60.468" class="raw-voronoi-cell" />
+  <polygon points="-0.315,30.040 7.898,29.328 12.064,34.291 10.646,44.019 4.775,46.270 -0.338,43.913" class="raw-voronoi-cell" />
+  <polygon points="22.817,24.138 33.187,18.467 34.104,18.746 38.676,27.604 24.463,32.497" class="raw-voronoi-cell" />
+  <polygon points="-34.410,-18.095 -25.804,-25.467 -20.953,-23.584 -18.573,-15.022 -26.306,-9.149 -34.225,-12.482" class="raw-voronoi-cell" />
+  <polygon points="39.314,5.143 43.760,-2.300 55.167,-3.586 56.224,-2.476 55.994,8.233 50.953,15.265 42.076,11.641" class="raw-voronoi-cell" />
+  <polygon points="34.104,18.746 42.076,11.641 50.953,15.265 51.567,18.823 40.341,28.478 38.676,27.604" class="raw-voronoi-cell" />
+  <polygon points="218.535,-112.371 42.731,-53.090 42.257,-53.318" class="raw-voronoi-cell" />
+  <polygon points="-56.653,-15.463 -55.669,-13.635 -59.548,6.906" class="raw-voronoi-cell" />
+  <polygon points="12.064,34.291 24.411,32.624 26.684,40.354 25.428,42.591 14.787,46.214 10.646,44.019" class="raw-voronoi-cell" />
+  <polygon points="-45.170,-26.769 -42.494,-31.978 -28.638,-32.943 -25.804,-25.467 -34.410,-18.095" class="raw-voronoi-cell" />
+  <polygon points="-8.757,57.259 4.212,60.468 5.636,62.296" class="raw-voronoi-cell" />
+  <polygon points="-30.534,45.686 -26.020,47.202 -24.043,57.675 -34.253,61.413 -39.081,56.267" class="raw-voronoi-cell" />
+  <polygon points="-44.627,-43.587 -32.419,-46.900 -27.191,-36.328 -28.638,-32.943 -42.494,-31.978" class="raw-voronoi-cell" />
+  <polygon points="-34.253,61.413 -24.043,57.675 -19.192,59.747" class="raw-voronoi-cell" />
+  <polygon points="20.514,-54.838 27.604,-56.188 35.626,-52.278 29.113,-37.311 14.454,-42.564" class="raw-voronoi-cell" />
+  <polygon points="45.890,51.625 55.817,49.533 68.968,233.610 45.781,114.364" class="raw-voronoi-cell" />
+  <polygon points="70.168,13.947 66.608,33.514 59.120,29.111 56.467,23.251" class="raw-voronoi-cell" />
+  <polygon points="-15.295,-55.178 -6.676,-66.441 3.241,-56.757 2.427,-50.493 -4.136,-46.052" class="raw-voronoi-cell" />
+  <polygon points="-4.787,45.080 -0.338,43.913 4.775,46.270 4.212,60.468 -8.757,57.259 -10.913,55.449" class="raw-voronoi-cell" />
+  <polygon points="18.750,-23.410 30.848,-32.202 38.612,-28.262 41.066,-22.251 34.417,-12.407 17.887,-20.506" class="raw-voronoi-cell" />
+  <polygon points="-25.540,3.261 -23.331,0.856 -21.826,0.797 -10.750,8.531 -10.938,14.158 -12.907,15.484 -25.726,11.304" class="raw-voronoi-cell" />
+  <polygon points="42.257,-53.318 35.626,-52.278 27.604,-56.188" class="raw-voronoi-cell" />
+  <polygon points="-30.748,33.724 -24.149,32.433 -17.746,39.993 -19.552,43.984 -26.020,47.202 -30.534,45.686 -33.511,40.426" class="raw-voronoi-cell" />
+  <polygon points="20.511,14.960 25.308,11.111 28.044,11.341 33.187,18.467 22.817,24.138 20.427,21.967" class="raw-voronoi-cell" />
+  <polygon points="-10.750,8.531 -5.102,1.350 0.691,0.658 3.860,13.482 -2.944,17.238 -10.938,14.158" class="raw-voronoi-cell" />
+  <polygon points="-44.876,26.574 -37.349,25.638 -30.748,33.724 -33.511,40.426 -48.613,41.299 -49.206,39.964" class="raw-voronoi-cell" />
+  <polygon points="-20.953,-23.584 -12.999,-28.385 -5.191,-23.716 -6.362,-15.175 -11.785,-12.044 -18.573,-15.022" class="raw-voronoi-cell" />
+  <polygon points="0.691,0.658 2.280,-0.978 11.403,-0.632 14.673,4.172 12.964,10.966 7.314,14.501 3.860,13.482" class="raw-voronoi-cell" />
+  <polygon points="27.604,-56.188 20.514,-54.838 13.130,-61.013" class="raw-voronoi-cell" />
+  <polygon points="-4.136,-46.052 2.427,-50.493 14.191,-42.426 11.521,-37.024 2.623,-33.443 -5.110,-40.886" class="raw-voronoi-cell" />
+  <polygon points="16.342,57.617 17.620,56.502 28.835,57.300 30.308,58.343 45.781,114.364 68.968,233.610" class="raw-voronoi-cell" />
+  <polygon points="-32.419,-46.900 -28.242,-54.064 -25.485,-54.623 -20.648,-54.324 -19.299,-53.977 -17.782,-39.374 -27.191,-36.328" class="raw-voronoi-cell" />
+  <polygon points="38.887,41.683 43.028,35.537 47.773,36.240 56.003,47.005 55.817,49.533 45.890,51.625 40.502,49.352" class="raw-voronoi-cell" />
+  <polygon points="5.636,62.296 16.342,57.617 68.968,233.610" class="raw-voronoi-cell" />
+  <polygon points="48.593,-40.769 58.197,-37.490 56.531,-20.056 55.011,-18.857 41.066,-22.251 38.612,-28.262" class="raw-voronoi-cell" />
+  <polygon points="-120.231,41.533 -68.969,32.233 -49.206,39.964 -48.613,41.299 -50.126,53.414 -53.838,56.541" class="raw-voronoi-cell" />
+  <polygon points="-59.548,6.906 -53.100,11.717 -52.931,17.433 -68.969,32.233 -120.231,41.533" class="raw-voronoi-cell" />
+  <polygon points="14.551,-17.663 17.887,-20.506 34.417,-12.407 34.419,-12.165 26.992,-3.282 16.434,-8.251" class="raw-voronoi-cell" />
+  <polygon points="-42.741,-66.931 -28.242,-54.064 -32.419,-46.900 -44.627,-43.587 -53.231,-49.783" class="raw-voronoi-cell" />
+  <polygon points="7.314,14.501 12.964,10.966 20.511,14.960 20.427,21.967 10.814,23.187" class="raw-voronoi-cell" />
+  <polygon points="-43.794,7.001 -40.565,1.338 -25.540,3.261 -25.726,11.304 -30.341,17.114 -31.628,17.458" class="raw-voronoi-cell" />
+  <polygon points="-53.095,-23.089 -45.170,-26.769 -34.410,-18.095 -34.225,-12.482 -41.399,-6.196 -55.669,-13.635 -56.653,-15.463" class="raw-voronoi-cell" />
+  <polygon points="-53.100,11.717 -43.794,7.001 -31.628,17.458 -37.349,25.638 -44.876,26.574 -52.931,17.433" class="raw-voronoi-cell" />
+  <polygon points="24.411,32.624 24.463,32.497 38.676,27.604 40.341,28.478 43.028,35.537 38.887,41.683 26.684,40.354" class="raw-voronoi-cell" />
+  <polygon points="47.773,36.240 59.120,29.111 66.608,33.514 56.003,47.005" class="raw-voronoi-cell" />
+  <polygon points="-55.669,-13.635 -41.399,-6.196 -40.565,1.338 -43.794,7.001 -53.100,11.717 -59.548,6.906" class="raw-voronoi-cell" />
+  <polygon points="58.197,-37.490 218.535,-112.371 56.531,-20.056" class="raw-voronoi-cell" />
+  <polygon points="-68.630,-46.850 -53.095,-23.089 -56.653,-15.463" class="raw-voronoi-cell" />
+  <polygon points="-26.020,47.202 -19.552,43.984 -11.277,55.447 -19.192,59.747 -24.043,57.675" class="raw-voronoi-cell" />
+  <polygon points="16.434,-8.251 26.992,-3.282 26.995,-3.175 21.481,4.001 14.673,4.172 11.403,-0.632" class="raw-voronoi-cell" />
+  <polygon points="-19.552,43.984 -17.746,39.993 -12.911,38.556 -4.787,45.080 -10.913,55.449 -11.277,55.447" class="raw-voronoi-cell" />
+  <polygon points="26.995,-3.175 26.992,-3.282 34.419,-12.165 43.760,-2.300 39.314,5.143 33.401,4.880" class="raw-voronoi-cell" />
+  <polygon points="14.673,4.172 21.481,4.001 25.308,11.111 20.511,14.960 12.964,10.966" class="raw-voronoi-cell" />
+  <polygon points="25.428,42.591 26.684,40.354 38.887,41.683 40.502,49.352 30.308,58.343 28.835,57.300" class="raw-voronoi-cell" />
+  <polygon points="-21.826,0.797 -12.108,-5.453 -5.102,1.350 -10.750,8.531" class="raw-voronoi-cell" />
+  <polygon points="14.787,46.214 25.428,42.591 28.835,57.300 17.620,56.502" class="raw-voronoi-cell" />
+  <polygon points="-28.638,-32.943 -27.191,-36.328 -17.782,-39.374 -13.166,-36.752 -12.999,-28.385 -20.953,-23.584 -25.804,-25.467" class="raw-voronoi-cell" />
+  <polygon points="-120.231,41.533 -53.838,56.541" class="raw-voronoi-cell" />
+  <polygon points="55.011,-18.857 56.531,-20.056 56.224,-2.476 55.167,-3.586" class="raw-voronoi-cell" />
+  <polygon points="-52.931,17.433 -44.876,26.574 -49.206,39.964 -68.969,32.233" class="raw-voronoi-cell" />
+  <polygon points="-68.630,-46.850 -53.231,-49.783 -44.627,-43.587 -42.494,-31.978 -45.170,-26.769 -53.095,-23.089" class="raw-voronoi-cell" />
+  <polygon points="-12.907,15.484 -10.938,14.158 -2.944,17.238 -1.873,29.109 -9.054,30.573 -16.456,24.223" class="raw-voronoi-cell" />
+  <polygon points="35.626,-52.278 42.257,-53.318 42.731,-53.090 48.593,-40.769 38.612,-28.262 30.848,-32.202 29.113,-37.311" class="raw-voronoi-cell" />
+  <polygon points="-2.944,17.238 3.860,13.482 7.314,14.501 10.814,23.187 7.898,29.328 -0.315,30.040 -1.873,29.109" class="raw-voronoi-cell" />
+  <polygon points="-53.838,56.541 -50.126,53.414 -39.081,56.267 -34.253,61.413" class="raw-voronoi-cell" />
+  <polygon points="-41.399,-6.196 -34.225,-12.482 -26.306,-9.149 -23.331,0.856 -25.540,3.261 -40.565,1.338" class="raw-voronoi-cell" />
+  <polygon points="-20.623,25.576 -16.456,24.223 -9.054,30.573 -12.911,38.556 -17.746,39.993 -24.149,32.433" class="raw-voronoi-cell" />
+  <polygon points="-26.306,-9.149 -18.573,-15.022 -11.785,-12.044 -12.108,-5.453 -21.826,0.797 -23.331,0.856" class="raw-voronoi-cell" />
+  <polygon points="-11.785,-12.044 -6.362,-15.175 1.498,-10.615 2.280,-0.978 0.691,0.658 -5.102,1.350 -12.108,-5.453" class="raw-voronoi-cell" />
+  <polygon points="-37.349,25.638 -31.628,17.458 -30.341,17.114 -20.623,25.576 -24.149,32.433 -30.748,33.724" class="raw-voronoi-cell" />
+  <polygon points="1.498,-10.615 11.920,-17.727 14.551,-17.663 16.434,-8.251 11.403,-0.632 2.280,-0.978" class="clipped-voronoi-cell" />
+  <polygon points="40.341,28.478 47.773,36.240 43.028,35.537" class="clipped-voronoi-cell" />
+  <polygon points="11.521,-37.024 14.191,-42.426 14.454,-42.564 29.113,-37.311 30.848,-32.202 18.750,-23.410" class="clipped-voronoi-cell" />
+  <polygon points="2.623,-33.443 11.521,-37.024 18.750,-23.410 17.887,-20.506 14.551,-17.663 11.920,-17.727 0.698,-26.932" class="clipped-voronoi-cell" />
+  <polygon points="34.419,-12.165 34.417,-12.407 41.066,-22.251 43.760,-2.300" class="clipped-voronoi-cell" />
+  <polygon points="-13.166,-36.752 -5.110,-40.886 2.623,-33.443 0.698,-26.932 -5.191,-23.716 -12.999,-28.385" class="clipped-voronoi-cell" />
+  <polygon points="-9.054,30.573 -1.873,29.109 -0.315,30.040 -0.338,43.913 -4.787,45.080 -12.911,38.556" class="clipped-voronoi-cell" />
+  <polygon points="33.401,4.880 39.314,5.143 42.076,11.641 34.104,18.746 33.187,18.467 28.044,11.341" class="clipped-voronoi-cell" />
+  <polygon points="-30.341,17.114 -25.726,11.304 -12.907,15.484 -16.456,24.223 -20.623,25.576" class="clipped-voronoi-cell" />
+  <polygon points="21.481,4.001 26.995,-3.175 33.401,4.880 28.044,11.341 25.308,11.111" class="clipped-voronoi-cell" />
+  <polygon points="-5.191,-23.716 0.698,-26.932 11.920,-17.727 1.498,-10.615 -6.362,-15.175" class="clipped-voronoi-cell" />
+  <polygon points="-48.613,41.299 -33.511,40.426 -30.534,45.686" class="clipped-voronoi-cell" />
+  <polygon points="-4.136,-46.052 -5.110,-40.886 -13.166,-36.752 -17.782,-39.374" class="clipped-voronoi-cell" />
+  <polygon points="10.814,23.187 20.427,21.967 22.817,24.138 24.463,32.497 24.411,32.624 12.064,34.291 7.898,29.328" class="clipped-voronoi-cell" />
+  <polygon points="4.775,46.270 10.646,44.019 14.787,46.214" class="clipped-voronoi-cell" />
+  <polygon points="-0.315,30.040 7.898,29.328 12.064,34.291 10.646,44.019 4.775,46.270 -0.338,43.913" class="clipped-voronoi-cell" />
+  <polygon points="22.817,24.138 33.187,18.467 34.104,18.746 38.676,27.604 24.463,32.497" class="clipped-voronoi-cell" />
+  <polygon points="-34.410,-18.095 -25.804,-25.467 -20.953,-23.584 -18.573,-15.022 -26.306,-9.149 -34.225,-12.482" class="clipped-voronoi-cell" />
+  <polygon points="39.314,5.143 43.760,-2.300 42.076,11.641" class="clipped-voronoi-cell" />
+  <polygon points="34.104,18.746 42.076,11.641 40.341,28.478 38.676,27.604" class="clipped-voronoi-cell" />
+  <polygon points="12.064,34.291 24.411,32.624 26.684,40.354 25.428,42.591 14.787,46.214 10.646,44.019" class="clipped-voronoi-cell" />
+  <polygon points="-45.170,-26.769 -42.494,-31.978 -28.638,-32.943 -25.804,-25.467 -34.410,-18.095" class="clipped-voronoi-cell" />
+  <polygon points="-44.627,-43.587 -32.419,-46.900 -27.191,-36.328 -28.638,-32.943 -42.494,-31.978" class="clipped-voronoi-cell" />
+  <polygon points="-4.787,45.080 -0.338,43.913 4.775,46.270" class="clipped-voronoi-cell" />
+  <polygon points="18.750,-23.410 30.848,-32.202 38.612,-28.262 41.066,-22.251 34.417,-12.407 17.887,-20.506" class="clipped-voronoi-cell" />
+  <polygon points="-25.540,3.261 -23.331,0.856 -21.826,0.797 -10.750,8.531 -10.938,14.158 -12.907,15.484 -25.726,11.304" class="clipped-voronoi-cell" />
+  <polygon points="-30.748,33.724 -24.149,32.433 -17.746,39.993 -19.552,43.984 -26.020,47.202 -30.534,45.686 -33.511,40.426" class="clipped-voronoi-cell" />
+  <polygon points="20.511,14.960 25.308,11.111 28.044,11.341 33.187,18.467 22.817,24.138 20.427,21.967" class="clipped-voronoi-cell" />
+  <polygon points="-10.750,8.531 -5.102,1.350 0.691,0.658 3.860,13.482 -2.944,17.238 -10.938,14.158" class="clipped-voronoi-cell" />
+  <polygon points="-44.876,26.574 -37.349,25.638 -30.748,33.724 -33.511,40.426 -48.613,41.299 -49.206,39.964" class="clipped-voronoi-cell" />
+  <polygon points="-20.953,-23.584 -12.999,-28.385 -5.191,-23.716 -6.362,-15.175 -11.785,-12.044 -18.573,-15.022" class="clipped-voronoi-cell" />
+  <polygon points="0.691,0.658 2.280,-0.978 11.403,-0.632 14.673,4.172 12.964,10.966 7.314,14.501 3.860,13.482" class="clipped-voronoi-cell" />
+  <polygon points="-4.136,-46.052 14.191,-42.426 11.521,-37.024 2.623,-33.443 -5.110,-40.886" class="clipped-voronoi-cell" />
+  <polygon points="-32.419,-46.900 -17.782,-39.374 -27.191,-36.328" class="clipped-voronoi-cell" />
+  <polygon points="38.887,41.683 43.028,35.537 47.773,36.240 40.502,49.352" class="clipped-voronoi-cell" />
+  <polygon points="48.593,-40.769 41.066,-22.251 38.612,-28.262" class="clipped-voronoi-cell" />
+  <polygon points="14.551,-17.663 17.887,-20.506 34.417,-12.407 34.419,-12.165 26.992,-3.282 16.434,-8.251" class="clipped-voronoi-cell" />
+  <polygon points="7.314,14.501 12.964,10.966 20.511,14.960 20.427,21.967 10.814,23.187" class="clipped-voronoi-cell" />
+  <polygon points="-43.794,7.001 -40.565,1.338 -25.540,3.261 -25.726,11.304 -30.341,17.114 -31.628,17.458" class="clipped-voronoi-cell" />
+  <polygon points="-45.170,-26.769 -34.410,-18.095 -34.225,-12.482 -41.399,-6.196" class="clipped-voronoi-cell" />
+  <polygon points="-43.794,7.001 -31.628,17.458 -37.349,25.638 -44.876,26.574" class="clipped-voronoi-cell" />
+  <polygon points="24.411,32.624 24.463,32.497 38.676,27.604 40.341,28.478 43.028,35.537 38.887,41.683 26.684,40.354" class="clipped-voronoi-cell" />
+  <polygon points="-41.399,-6.196 -40.565,1.338 -43.794,7.001" class="clipped-voronoi-cell" />
+  <polygon points="16.434,-8.251 26.992,-3.282 26.995,-3.175 21.481,4.001 14.673,4.172 11.403,-0.632" class="clipped-voronoi-cell" />
+  <polygon points="-19.552,43.984 -17.746,39.993 -12.911,38.556 -4.787,45.080" class="clipped-voronoi-cell" />
+  <polygon points="26.995,-3.175 26.992,-3.282 34.419,-12.165 43.760,-2.300 39.314,5.143 33.401,4.880" class="clipped-voronoi-cell" />
+  <polygon points="14.673,4.172 21.481,4.001 25.308,11.111 20.511,14.960 12.964,10.966" class="clipped-voronoi-cell" />
+  <polygon points="25.428,42.591 26.684,40.354 38.887,41.683 40.502,49.352" class="clipped-voronoi-cell" />
+  <polygon points="-21.826,0.797 -12.108,-5.453 -5.102,1.350 -10.750,8.531" class="clipped-voronoi-cell" />
+  <polygon points="-28.638,-32.943 -27.191,-36.328 -17.782,-39.374 -13.166,-36.752 -12.999,-28.385 -20.953,-23.584 -25.804,-25.467" class="clipped-voronoi-cell" />
+  <polygon points="-44.627,-43.587 -42.494,-31.978 -45.170,-26.769" class="clipped-voronoi-cell" />
+  <polygon points="-12.907,15.484 -10.938,14.158 -2.944,17.238 -1.873,29.109 -9.054,30.573 -16.456,24.223" class="clipped-voronoi-cell" />
+  <polygon points="48.593,-40.769 38.612,-28.262 30.848,-32.202 29.113,-37.311" class="clipped-voronoi-cell" />
+  <polygon points="-2.944,17.238 3.860,13.482 7.314,14.501 10.814,23.187 7.898,29.328 -0.315,30.040 -1.873,29.109" class="clipped-voronoi-cell" />
+  <polygon points="-41.399,-6.196 -34.225,-12.482 -26.306,-9.149 -23.331,0.856 -25.540,3.261 -40.565,1.338" class="clipped-voronoi-cell" />
+  <polygon points="-20.623,25.576 -16.456,24.223 -9.054,30.573 -12.911,38.556 -17.746,39.993 -24.149,32.433" class="clipped-voronoi-cell" />
+  <polygon points="-26.306,-9.149 -18.573,-15.022 -11.785,-12.044 -12.108,-5.453 -21.826,0.797 -23.331,0.856" class="clipped-voronoi-cell" />
+  <polygon points="-11.785,-12.044 -6.362,-15.175 1.498,-10.615 2.280,-0.978 0.691,0.658 -5.102,1.350 -12.108,-5.453" class="clipped-voronoi-cell" />
+  <polygon points="-37.349,25.638 -31.628,17.458 -30.341,17.114 -20.623,25.576 -24.149,32.433 -30.748,33.724" class="clipped-voronoi-cell" />
+  <polygon points="23.287,-26.707 26.311,-28.905 29.065,-30.307 31.548,-30.914 33.760,-30.725 35.700,-29.740 37.309,-28.625 38.587,-27.381 39.532,-26.008 40.146,-24.505 40.190,-22.763 39.666,-20.781 38.573,-18.559 36.910,-16.098 34.631,-14.759 31.733,-14.540 28.218,-15.444 24.086,-17.469 21.040,-19.169 19.082,-20.544 18.211,-21.595 18.426,-22.321 19.344,-23.415 20.964,-24.877" class="merged-polygon" />
+  <text x="23.287" y="-26.707" class="merged-polygon-coord">(23.3,-26.7)</text>
+  <text x="26.311" y="-28.905" class="merged-polygon-coord">(26.3,-28.9)</text>
+  <text x="29.065" y="-30.307" class="merged-polygon-coord">(29.1,-30.3)</text>
+  <text x="31.548" y="-30.914" class="merged-polygon-coord">(31.5,-30.9)</text>
+  <text x="33.760" y="-30.725" class="merged-polygon-coord">(33.8,-30.7)</text>
+  <text x="35.700" y="-29.740" class="merged-polygon-coord">(35.7,-29.7)</text>
+  <text x="37.309" y="-28.625" class="merged-polygon-coord">(37.3,-28.6)</text>
+  <text x="38.587" y="-27.381" class="merged-polygon-coord">(38.6,-27.4)</text>
+  <text x="39.532" y="-26.008" class="merged-polygon-coord">(39.5,-26.0)</text>
+  <text x="40.146" y="-24.505" class="merged-polygon-coord">(40.1,-24.5)</text>
+  <text x="40.190" y="-22.763" class="merged-polygon-coord">(40.2,-22.8)</text>
+  <text x="39.666" y="-20.781" class="merged-polygon-coord">(39.7,-20.8)</text>
+  <text x="38.573" y="-18.559" class="merged-polygon-coord">(38.6,-18.6)</text>
+  <text x="36.910" y="-16.098" class="merged-polygon-coord">(36.9,-16.1)</text>
+  <text x="34.631" y="-14.759" class="merged-polygon-coord">(34.6,-14.8)</text>
+  <text x="31.733" y="-14.540" class="merged-polygon-coord">(31.7,-14.5)</text>
+  <text x="28.218" y="-15.444" class="merged-polygon-coord">(28.2,-15.4)</text>
+  <text x="24.086" y="-17.469" class="merged-polygon-coord">(24.1,-17.5)</text>
+  <text x="21.040" y="-19.169" class="merged-polygon-coord">(21.0,-19.2)</text>
+  <text x="19.082" y="-20.544" class="merged-polygon-coord">(19.1,-20.5)</text>
+  <text x="18.211" y="-21.595" class="merged-polygon-coord">(18.2,-21.6)</text>
+  <text x="18.426" y="-22.321" class="merged-polygon-coord">(18.4,-22.3)</text>
+  <text x="19.344" y="-23.415" class="merged-polygon-coord">(19.3,-23.4)</text>
+  <text x="20.964" y="-24.877" class="merged-polygon-coord">(21.0,-24.9)</text>
+  <circle cx="-14.088" cy="-55.519" r="0.280" class="initial-point" />
+  <circle cx="-45.625" cy="-51.454" r="0.280" class="initial-point" />
+  <circle cx="42.597" cy="60.824" r="0.280" class="initial-point" />
+  <circle cx="10.285" cy="1.316" r="0.280" class="initial-point" />
+  <circle cx="-21.776" cy="-55.806" r="0.280" class="initial-point" />
+  <circle cx="53.265" cy="22.061" r="0.280" class="initial-point" />
+  <circle cx="25.524" cy="-36.177" r="0.280" class="initial-point" />
+  <circle cx="2.867" cy="-36.177" r="0.280" class="initial-point" />
+  <circle cx="56.916" cy="22.061" r="0.280" class="initial-point" />
+  <circle cx="-1.769" cy="-55.806" r="0.280" class="initial-point" />
+  <circle cx="41.674" cy="1.316" r="0.280" class="initial-point" />
+  <circle cx="62.336" cy="60.824" r="0.280" class="initial-point" />
+  <circle cx="10.554" cy="-51.454" r="0.280" class="initial-point" />
+  <circle cx="-37.584" cy="-55.519" r="0.280" class="initial-point" />
+  <circle cx="33.132" cy="-54.250" r="0.280" class="initial-point" />
+  <circle cx="62.569" cy="4.573" r="0.280" class="initial-point" />
+  <circle cx="-10.038" cy="-25.199" r="0.280" class="initial-point" />
+  <circle cx="-10.045" cy="42.140" r="0.280" class="initial-point" />
+  <circle cx="27.145" cy="9.824" r="0.280" class="initial-point" />
+  <circle cx="-16.624" cy="13.610" r="0.280" class="initial-point" />
+  <circle cx="-50.548" cy="41.393" r="0.280" class="initial-point" />
+  <circle cx="43.984" cy="-64.332" r="0.280" class="initial-point" />
+  <circle cx="-24.629" cy="54.798" r="0.280" class="initial-point" />
+  <circle cx="26.368" cy="7.127" r="0.280" class="initial-point" />
+  <circle cx="-7.695" cy="-22.074" r="0.280" class="initial-point" />
+  <circle cx="-36.022" cy="43.971" r="0.280" class="initial-point" />
+  <circle cx="-10.549" cy="-54.298" r="0.280" class="initial-point" />
+  <circle cx="14.413" cy="20.850" r="0.280" class="initial-point" />
+  <circle cx="19.168" cy="57.118" r="0.280" class="initial-point" />
+  <circle cx="3.307" cy="33.502" r="0.280" class="initial-point" />
+  <circle cx="29.158" cy="21.161" r="0.280" class="initial-point" />
+  <circle cx="-26.772" cy="-9.241" r="0.280" class="initial-point" />
+  <circle cx="39.271" cy="5.819" r="0.280" class="initial-point" />
+  <circle cx="40.437" cy="16.001" r="0.280" class="initial-point" />
+  <circle cx="42.352" cy="-40.051" r="0.280" class="initial-point" />
+  <circle cx="-44.945" cy="-1.777" r="0.280" class="initial-point" />
+  <circle cx="-43.817" cy="13.767" r="0.280" class="initial-point" />
+  <circle cx="23.292" cy="44.728" r="0.280" class="initial-point" />
+  <circle cx="-31.116" cy="-34.355" r="0.280" class="initial-point" />
+  <circle cx="19.003" cy="63.578" r="0.280" class="initial-point" />
+  <circle cx="-26.163" cy="47.362" r="0.280" class="initial-point" />
+  <circle cx="-31.483" cy="-38.546" r="0.280" class="initial-point" />
+  <circle cx="-37.109" cy="62.554" r="0.280" class="initial-point" />
+  <circle cx="28.360" cy="-42.453" r="0.280" class="initial-point" />
+  <circle cx="55.197" cy="57.118" r="0.280" class="initial-point" />
+  <circle cx="62.569" cy="20.850" r="0.280" class="initial-point" />
+  <circle cx="-10.038" cy="-54.298" r="0.280" class="initial-point" />
+  <circle cx="-10.045" cy="43.971" r="0.280" class="initial-point" />
+  <circle cx="27.145" cy="-22.074" r="0.280" class="initial-point" />
+  <circle cx="-16.624" cy="7.127" r="0.280" class="initial-point" />
+  <circle cx="-50.548" cy="54.798" r="0.280" class="initial-point" />
+  <circle cx="43.984" cy="-64.332" r="0.280" class="initial-point" />
+  <circle cx="-24.629" cy="41.393" r="0.280" class="initial-point" />
+  <circle cx="26.368" cy="13.610" r="0.280" class="initial-point" />
+  <circle cx="-7.695" cy="9.824" r="0.280" class="initial-point" />
+  <circle cx="-36.022" cy="42.140" r="0.280" class="initial-point" />
+  <circle cx="-10.549" cy="-25.199" r="0.280" class="initial-point" />
+  <circle cx="14.413" cy="4.573" r="0.280" class="initial-point" />
+  <circle cx="19.168" cy="-54.250" r="0.280" class="initial-point" />
+  <circle cx="3.307" cy="-42.453" r="0.280" class="initial-point" />
+  <circle cx="29.158" cy="62.554" r="0.280" class="initial-point" />
+  <circle cx="-26.772" cy="-38.546" r="0.280" class="initial-point" />
+  <circle cx="39.271" cy="47.362" r="0.280" class="initial-point" />
+  <circle cx="40.437" cy="63.578" r="0.280" class="initial-point" />
+  <circle cx="42.352" cy="-34.355" r="0.280" class="initial-point" />
+  <circle cx="-44.945" cy="44.728" r="0.280" class="initial-point" />
+  <circle cx="-43.817" cy="13.767" r="0.280" class="initial-point" />
+  <circle cx="23.292" cy="-1.777" r="0.280" class="initial-point" />
+  <circle cx="-31.116" cy="-40.051" r="0.280" class="initial-point" />
+  <circle cx="19.003" cy="16.001" r="0.280" class="initial-point" />
+  <circle cx="-26.163" cy="5.819" r="0.280" class="initial-point" />
+  <circle cx="-31.483" cy="-9.241" r="0.280" class="initial-point" />
+  <circle cx="-37.109" cy="21.161" r="0.280" class="initial-point" />
+  <circle cx="28.360" cy="33.502" r="0.280" class="initial-point" />
+  <circle cx="55.197" cy="32.055" r="0.280" class="initial-point" />
+  <circle cx="-43.868" cy="-2.640" r="0.280" class="initial-point" />
+  <circle cx="58.692" cy="-19.210" r="0.280" class="initial-point" />
+  <circle cx="-53.138" cy="-32.420" r="0.280" class="initial-point" />
+  <circle cx="-19.841" cy="45.668" r="0.280" class="initial-point" />
+  <circle cx="23.313" cy="4.282" r="0.280" class="initial-point" />
+  <circle cx="-16.190" cy="44.714" r="0.280" class="initial-point" />
+  <circle cx="28.955" cy="7.331" r="0.280" class="initial-point" />
+  <circle cx="22.747" cy="7.331" r="0.280" class="initial-point" />
+  <circle cx="28.955" cy="44.714" r="0.280" class="initial-point" />
+  <circle cx="-16.190" cy="4.282" r="0.280" class="initial-point" />
+  <circle cx="23.313" cy="45.668" r="0.280" class="initial-point" />
+  <circle cx="-19.841" cy="-32.420" r="0.280" class="initial-point" />
+  <circle cx="-53.138" cy="-19.210" r="0.280" class="initial-point" />
+  <circle cx="58.692" cy="-2.640" r="0.280" class="initial-point" />
+  <circle cx="-43.868" cy="32.055" r="0.280" class="initial-point" />
+  <circle cx="-43.690" cy="-38.090" r="0.280" class="initial-point" />
+  <circle cx="-15.718" cy="23.704" r="0.280" class="initial-point" />
+  <circle cx="31.999" cy="-40.031" r="0.280" class="initial-point" />
+  <circle cx="8.651" cy="22.149" r="0.280" class="initial-point" />
+  <circle cx="-40.261" cy="51.724" r="0.280" class="initial-point" />
+  <circle cx="-26.776" cy="-4.462" r="0.280" class="initial-point" />
+  <circle cx="-19.728" cy="29.764" r="0.280" class="initial-point" />
+  <circle cx="-21.816" cy="-4.185" r="0.280" class="initial-point" />
+  <circle cx="-10.545" cy="-4.185" r="0.280" class="initial-point" />
+  <circle cx="-21.816" cy="29.764" r="0.280" class="initial-point" />
+  <circle cx="-18.591" cy="-65.000" r="0.400" class="relaxed-point" />
+  <circle cx="-56.990" cy="-63.729" r="0.400" class="relaxed-point" />
+  <circle cx="41.501" cy="57.924" r="0.400" class="relaxed-point" />
+  <circle cx="8.759" cy="-7.838" r="0.400" class="relaxed-point" />
+  <circle cx="-28.265" cy="-65.000" r="0.400" class="relaxed-point" />
+  <circle cx="49.632" cy="28.605" r="0.400" class="relaxed-point" />
+  <circle cx="20.471" cy="-33.720" r="0.400" class="relaxed-point" />
+  <circle cx="9.245" cy="-27.759" r="0.400" class="relaxed-point" />
+  <circle cx="61.104" cy="15.911" r="0.400" class="relaxed-point" />
+  <circle cx="5.240" cy="-65.000" r="0.400" class="relaxed-point" />
+  <circle cx="45.180" cy="-10.995" r="0.400" class="relaxed-point" />
+  <circle cx="65.000" cy="45.379" r="0.400" class="relaxed-point" />
+  <circle cx="10.602" cy="-52.543" r="0.400" class="relaxed-point" />
+  <circle cx="-22.705" cy="-65.000" r="0.400" class="relaxed-point" />
+  <circle cx="55.988" cy="-48.212" r="0.400" class="relaxed-point" />
+  <circle cx="65.000" cy="6.246" r="0.400" class="relaxed-point" />
+  <circle cx="-6.025" cy="-32.275" r="0.400" class="relaxed-point" />
+  <circle cx="-5.660" cy="37.421" r="0.400" class="relaxed-point" />
+  <circle cx="34.441" cy="11.234" r="0.400" class="relaxed-point" />
+  <circle cx="-21.186" cy="17.835" r="0.400" class="relaxed-point" />
+  <circle cx="-65.000" cy="65.000" r="0.400" class="relaxed-point" />
+  <circle cx="34.188" cy="-65.000" r="0.400" class="relaxed-point" />
+  <circle cx="-12.553" cy="65.000" r="0.400" class="relaxed-point" />
+  <circle cx="26.964" cy="5.036" r="0.400" class="relaxed-point" />
+  <circle cx="1.559" cy="-18.388" r="0.400" class="relaxed-point" />
+  <circle cx="-37.997" cy="46.885" r="0.400" class="relaxed-point" />
+  <circle cx="-12.639" cy="-45.164" r="0.400" class="relaxed-point" />
+  <circle cx="16.386" cy="27.883" r="0.400" class="relaxed-point" />
+  <circle cx="10.849" cy="52.683" r="0.400" class="relaxed-point" />
+  <circle cx="5.005" cy="37.439" r="0.400" class="relaxed-point" />
+  <circle cx="30.187" cy="25.166" r="0.400" class="relaxed-point" />
+  <circle cx="-26.016" cy="-16.818" r="0.400" class="relaxed-point" />
+  <circle cx="47.081" cy="5.860" r="0.400" class="relaxed-point" />
+  <circle cx="41.605" cy="19.272" r="0.400" class="relaxed-point" />
+  <circle cx="50.327" cy="-65.000" r="0.400" class="relaxed-point" />
+  <circle cx="-65.000" cy="-4.255" r="0.400" class="relaxed-point" />
+  <circle cx="-65.000" cy="18.067" r="0.400" class="relaxed-point" />
+  <circle cx="17.930" cy="39.324" r="0.400" class="relaxed-point" />
+  <circle cx="-34.383" cy="-26.586" r="0.400" class="relaxed-point" />
+  <circle cx="-4.961" cy="65.000" r="0.400" class="relaxed-point" />
+  <circle cx="-30.137" cy="53.235" r="0.400" class="relaxed-point" />
+  <circle cx="-35.209" cy="-38.442" r="0.400" class="relaxed-point" />
+  <circle cx="-25.830" cy="65.000" r="0.400" class="relaxed-point" />
+  <circle cx="24.719" cy="-45.573" r="0.400" class="relaxed-point" />
+  <circle cx="50.257" cy="57.939" r="0.400" class="relaxed-point" />
+  <circle cx="65.000" cy="21.648" r="0.400" class="relaxed-point" />
+  <circle cx="-4.953" cy="-54.562" r="0.400" class="relaxed-point" />
+  <circle cx="-1.789" cy="52.181" r="0.400" class="relaxed-point" />
+  <circle cx="29.088" cy="-21.864" r="0.400" class="relaxed-point" />
+  <circle cx="-18.209" cy="8.705" r="0.400" class="relaxed-point" />
+  <circle cx="-65.000" cy="65.000" r="0.400" class="relaxed-point" />
+  <circle cx="34.188" cy="-65.000" r="0.400" class="relaxed-point" />
+  <circle cx="-25.663" cy="39.906" r="0.400" class="relaxed-point" />
+  <circle cx="25.928" cy="17.378" r="0.400" class="relaxed-point" />
+  <circle cx="-3.318" cy="9.205" r="0.400" class="relaxed-point" />
+  <circle cx="-38.712" cy="34.526" r="0.400" class="relaxed-point" />
+  <circle cx="-13.126" cy="-20.401" r="0.400" class="relaxed-point" />
+  <circle cx="8.221" cy="6.354" r="0.400" class="relaxed-point" />
+  <circle cx="21.019" cy="-65.000" r="0.400" class="relaxed-point" />
+  <circle cx="3.460" cy="-42.129" r="0.400" class="relaxed-point" />
+  <circle cx="20.487" cy="63.728" r="0.400" class="relaxed-point" />
+  <circle cx="-24.004" cy="-43.983" r="0.400" class="relaxed-point" />
+  <circle cx="47.338" cy="44.085" r="0.400" class="relaxed-point" />
+  <circle cx="16.232" cy="65.000" r="0.400" class="relaxed-point" />
+  <circle cx="49.892" cy="-30.358" r="0.400" class="relaxed-point" />
+  <circle cx="-60.276" cy="44.103" r="0.400" class="relaxed-point" />
+  <circle cx="-65.000" cy="18.067" r="0.400" class="relaxed-point" />
+  <circle cx="23.678" cy="-10.823" r="0.400" class="relaxed-point" />
+  <circle cx="-39.103" cy="-52.787" r="0.400" class="relaxed-point" />
+  <circle cx="15.037" cy="17.248" r="0.400" class="relaxed-point" />
+  <circle cx="-33.115" cy="8.360" r="0.400" class="relaxed-point" />
+  <circle cx="-42.702" cy="-16.266" r="0.400" class="relaxed-point" />
+  <circle cx="-40.846" cy="17.354" r="0.400" class="relaxed-point" />
+  <circle cx="33.486" cy="34.751" r="0.400" class="relaxed-point" />
+  <circle cx="55.458" cy="37.878" r="0.400" class="relaxed-point" />
+  <circle cx="-50.401" cy="-1.499" r="0.400" class="relaxed-point" />
+  <circle cx="65.000" cy="-28.915" r="0.400" class="relaxed-point" />
+  <circle cx="-65.000" cy="-26.671" r="0.400" class="relaxed-point" />
+  <circle cx="-19.987" cy="51.319" r="0.400" class="relaxed-point" />
+  <circle cx="19.069" cy="-1.031" r="0.400" class="relaxed-point" />
+  <circle cx="-12.454" cy="45.881" r="0.400" class="relaxed-point" />
+  <circle cx="35.001" cy="-1.356" r="0.400" class="relaxed-point" />
+  <circle cx="19.324" cy="9.147" r="0.400" class="relaxed-point" />
+  <circle cx="32.122" cy="47.290" r="0.400" class="relaxed-point" />
+  <circle cx="-13.156" cy="1.469" r="0.400" class="relaxed-point" />
+  <circle cx="21.481" cy="49.755" r="0.400" class="relaxed-point" />
+  <circle cx="-20.123" cy="-31.993" r="0.400" class="relaxed-point" />
+  <circle cx="-65.000" cy="65.000" r="0.400" class="relaxed-point" />
+  <circle cx="65.000" cy="-11.198" r="0.400" class="relaxed-point" />
+  <circle cx="-54.530" cy="29.412" r="0.400" class="relaxed-point" />
+  <circle cx="-51.601" cy="-35.431" r="0.400" class="relaxed-point" />
+  <circle cx="-8.612" cy="22.943" r="0.400" class="relaxed-point" />
+  <circle cx="38.153" cy="-39.727" r="0.400" class="relaxed-point" />
+  <circle cx="3.654" cy="21.836" r="0.400" class="relaxed-point" />
+  <circle cx="-42.676" cy="65.000" r="0.400" class="relaxed-point" />
+  <circle cx="-31.587" cy="-3.581" r="0.400" class="relaxed-point" />
+  <circle cx="-16.528" cy="32.170" r="0.400" class="relaxed-point" />
+  <circle cx="-18.841" cy="-7.370" r="0.400" class="relaxed-point" />
+  <circle cx="-5.220" cy="-6.704" r="0.400" class="relaxed-point" />
+  <circle cx="-28.368" cy="26.082" r="0.400" class="relaxed-point" />
+</svg>

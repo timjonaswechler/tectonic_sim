@@ -1,7 +1,8 @@
-// src/math/geometry/metalballs/field.rs
+// src/math/algorithms/metaballs/field.rs
+use crate::math::scalar_field::ScalarField2D; // Annahme: dieser Trait existiert noch
 
 /// Repräsentiert ein zweidimensionales Skalarfeld, das die summierten Einflüsse
-/// von Metaball-Quellen an jedem Gitterpunkt speichert.
+/// von Einflussquellen an jedem Gitterpunkt speichert.
 /// Die Daten werden zeilenweise (row-major) gespeichert.
 #[derive(Debug, Clone, PartialEq)]
 pub struct MetaballField {
@@ -15,11 +16,6 @@ impl MetaballField {
     /// Erstellt ein neues, mit Nullen initialisiertes MetaballField.
     pub fn new(width: usize, height: usize, cell_size: f32) -> Self {
         if width == 0 || height == 0 {
-            // Vermeide ein leeres `data` Array, wenn width oder height 0 ist,
-            // was zu Panics bei `idx` führen könnte, wenn nicht sorgfältig geprüft.
-            // Besser ist es, ein Feld der Größe 0x0 oder 1x0 etc. zu erlauben,
-            // aber die Operationen müssen damit umgehen können.
-            // Fürs Erste: leeres Feld, wenn eine Dimension 0 ist.
             Self {
                 data: Vec::new(),
                 width: 0,
@@ -36,27 +32,22 @@ impl MetaballField {
         }
     }
 
-    /// Berechnet den linearen Index für gegebene 2D-Koordinaten (x, y).
     #[inline]
     fn idx(&self, x: usize, y: usize) -> Option<usize> {
         if x < self.width && y < self.height {
             Some(y * self.width + x)
         } else {
-            None // Außerhalb der Grenzen
+            None
         }
     }
 
-    /// Gibt den Skalarwert an der Zelle (x, y) zurück.
-    /// Gibt `0.0` zurück, wenn die Koordinaten außerhalb der Grenzen liegen.
     pub fn get(&self, x: usize, y: usize) -> f32 {
         match self.idx(x, y) {
-            Some(index) => self.data.get(index).copied().unwrap_or(0.0), // unwrap_or für den Fall, dass data leer ist
-            None => 0.0,                                                 // Außerhalb der Grenzen
+            Some(index) => self.data.get(index).copied().unwrap_or(0.0),
+            None => 0.0,
         }
     }
 
-    /// Setzt den Skalarwert an der Zelle (x, y).
-    /// Macht nichts, wenn die Koordinaten außerhalb der Grenzen liegen.
     pub fn set(&mut self, x: usize, y: usize, value: f32) {
         if let Some(index) = self.idx(x, y) {
             if let Some(val_ref) = self.data.get_mut(index) {
@@ -65,8 +56,22 @@ impl MetaballField {
         }
     }
 
-    /// Gibt die Daten des Feldes als Slice zurück.
     pub fn data(&self) -> &[f32] {
         &self.data
+    }
+}
+
+impl ScalarField2D for MetaballField {
+    fn width(&self) -> usize {
+        self.width
+    }
+    fn height(&self) -> usize {
+        self.height
+    }
+    fn cell_size(&self) -> f32 {
+        self.cell_size
+    }
+    fn get_value(&self, x_idx: usize, y_idx: usize) -> f32 {
+        self.get(x_idx, y_idx)
     }
 }

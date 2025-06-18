@@ -17,9 +17,6 @@ pub enum MathError {
 
     #[error("Conversion error: {from} to {to}")]
     ConversionError { from: String, to: String },
-
-    #[error("No Voronoi cells found.")]
-    EmptyVoronoiCells,
 }
 
 pub type MathResult<T> = Result<T, MathError>;

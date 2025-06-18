@@ -1,35 +1,54 @@
 // src/math/algorithms/clipping.rs
 
+//! # Polygon Clipping Module
+//!
+//! This module provides structures and algorithms for clipping polygons.
+//! Clipping is the process of determining the portion of a polygon (the "subject")
+//! that lies within another polygon (the "clipper") or a rectangular region.
+//!
+//! Currently, the primary supported algorithm is Sutherland-Hodgman, which is
+//! suitable for convex clipper polygons.
+
 use crate::math::{
     error::{MathError, MathResult},
-    types::Bounds2D, // Unser Bounds2D mit Vec2
+    types::Bounds2D, // Custom Bounds2D struct using Vec2
     utils::constants,
 };
 use bevy::math::Vec2;
 
-/// Algorithmen zur Durchführung von Polygon-Clipping-Operationen.
+/// Specifies the algorithm to be used for polygon clipping operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ClippingAlgorithm {
-    /// Sutherland-Hodgman Algorithmus (für konvexe Clipper-Polygone).
+    /// The Sutherland-Hodgman algorithm.
+    /// This algorithm clips a subject polygon against a convex clipper polygon.
+    /// It processes the subject polygon against each edge of the clipper polygon sequentially.
     SutherlandHodgman,
-    // WeilerAtherton, // Komplexer, für beliebige Polygone (hier nicht implementiert)
-    // LiangBarsky,    // Für Linien-Clipping gegen Rechtecke (hier nicht für Polygone)
-    // CohenSutherland // Für Linien-Clipping gegen Rechtecke (hier nicht für Polygone)
+    // WeilerAtherton, // More complex, handles arbitrary polygons (not implemented here)
+    // LiangBarsky,    // Primarily for line clipping against rectangles (not for polygon-polygon here)
+    // CohenSutherland // Primarily for line clipping against rectangles (not for polygon-polygon here)
 }
 
 impl Default for ClippingAlgorithm {
+    /// Returns the default clipping algorithm.
+    ///
+    /// Default: `ClippingAlgorithm::SutherlandHodgman`
     fn default() -> Self {
         ClippingAlgorithm::SutherlandHodgman
     }
 }
 
-/// Führt Polygon-Clipping-Operationen durch.
+/// Performs polygon clipping operations using a specified algorithm.
 pub struct PolygonClipper {
     algorithm: ClippingAlgorithm,
-    tolerance: f32,
+    tolerance: f32, // Tolerance for floating-point comparisons
 }
 
 impl Default for PolygonClipper {
+    /// Creates a default `PolygonClipper` instance.
+    ///
+    /// Default values:
+    /// - `algorithm`: `ClippingAlgorithm::SutherlandHodgman`
+    /// - `tolerance`: `constants::EPSILON * 10.0`
     fn default() -> Self {
         Self {
             algorithm: ClippingAlgorithm::default(),
@@ -39,6 +58,10 @@ impl Default for PolygonClipper {
 }
 
 impl PolygonClipper {
+    /// Creates a new `PolygonClipper` with the specified algorithm.
+    ///
+    /// # Arguments
+    /// * `algorithm` - The `ClippingAlgorithm` to use.
     pub fn new(algorithm: ClippingAlgorithm) -> Self {
         Self {
             algorithm,
@@ -46,16 +69,28 @@ impl PolygonClipper {
         }
     }
 
+    /// Sets the tolerance for floating-point comparisons used in the clipping process.
+    ///
+    /// # Arguments
+    /// * `tolerance` - The desired tolerance value. Must be non-negative.
     pub fn with_tolerance(mut self, tolerance: f32) -> Self {
         self.tolerance = tolerance.max(0.0);
         self
     }
 
-    /// Clippt ein Subjekt-Polygon (Liste von Punkten) gegen ein Clipper-Polygon (Liste von Punkten).
-    /// Beide Polygone werden als geschlossen und im Gegen-Uhrzeigersinn (CCW) orientiert angenommen
-    /// für den Sutherland-Hodgman Algorithmus.
-    /// Gibt eine Liste von Punktlisten zurück, die die resultierenden geclippten Polygone darstellen.
-    /// Derzeit wird nur Sutherland-Hodgman unterstützt, der ein einzelnes Polygon (oder kein Polygon) zurückgibt.
+    /// Clips a subject polygon (represented by its vertices) against a clipper polygon.
+    ///
+    /// Both polygons are assumed to have their vertices ordered (e.g., counter-clockwise for
+    /// Sutherland-Hodgman, where the clipper must be convex).
+    ///
+    /// # Arguments
+    /// * `subject_polygon_points` - Vertices of the polygon to be clipped.
+    /// * `clipper_polygon_points` - Vertices of the clipping polygon.
+    ///
+    /// # Returns
+    /// A `MathResult` containing a `Vec<Vec<Vec2>>`. Each inner `Vec<Vec2>` is a
+    /// resulting clipped polygon. Sutherland-Hodgman typically returns a single polygon or an empty list.
+    /// Returns an error if input polygons have fewer than 3 points.
     pub fn clip_polygon_points(
         &self,
         subject_polygon_points: &[Vec2],
@@ -75,15 +110,23 @@ impl PolygonClipper {
                 let result_points =
                     self.sutherland_hodgman_clip(subject_polygon_points, clipper_polygon_points)?;
                 if result_points.len() >= 3 {
-                    Ok(vec![result_points])
+                    Ok(vec![result_points]) // Sutherland-Hodgman produces one polygon
                 } else {
-                    Ok(Vec::new()) // Kein gültiges Polygon Ergebnis
+                    Ok(Vec::new()) // No valid polygon resulted from clipping
                 }
-            } // Andere Algorithmen könnten hier implementiert werden
+            } // Other algorithms could be implemented and matched here.
         }
     }
 
-    /// Clippt ein Subjekt-Polygon (Liste von Punkten) gegen ein achsenparalleles Rechteck (Bounds2D).
+    /// Clips a subject polygon (represented by its vertices) against an axis-aligned rectangle (`Bounds2D`).
+    ///
+    /// # Arguments
+    /// * `subject_polygon_points` - Vertices of the polygon to be clipped.
+    /// * `clip_bounds` - The axis-aligned bounding box to clip against.
+    ///
+    /// # Returns
+    /// A `MathResult` similar to `clip_polygon_points`.
+    /// Returns an error if the subject polygon has fewer than 3 points or if `clip_bounds` is invalid.
     pub fn clip_polygon_against_rectangle(
         &self,
         subject_polygon_points: &[Vec2],
@@ -101,17 +144,14 @@ impl PolygonClipper {
             });
         }
 
-        // Konvertiere Bounds2D zu einer Polygon-Punkteliste für Sutherland-Hodgman
+        // Convert Bounds2D to a polygon vertex list (CCW order for Sutherland-Hodgman)
         let clipper_rect_points = [
-            clip_bounds.min,
-            Vec2::new(clip_bounds.max.x, clip_bounds.min.y),
-            clip_bounds.max,
-            Vec2::new(clip_bounds.min.x, clip_bounds.max.y),
+            clip_bounds.min,                                 // Bottom-left
+            Vec2::new(clip_bounds.max.x, clip_bounds.min.y), // Bottom-right
+            clip_bounds.max,                                 // Top-right
+            Vec2::new(clip_bounds.min.x, clip_bounds.max.y), // Top-left
         ];
 
-        // Sutherland-Hodgman kann auch für Rechteck-Clipping verwendet werden.
-        // Spezifische Linien-Clipper wie Cohen-Sutherland oder Liang-Barsky sind hier nicht
-        // direkt für Polygon-Clipping anwendbar, sondern für einzelne Liniensegmente.
         match self.algorithm {
             ClippingAlgorithm::SutherlandHodgman => {
                 let result_points =
@@ -125,19 +165,30 @@ impl PolygonClipper {
         }
     }
 
-    // --- Sutherland-Hodgman Algorithmus Implementierung ---
-    // Nimmt an, dass das clipper_polygon konvex ist und die Punkte in CCW-Reihenfolge sind.
+    // --- Sutherland-Hodgman Algorithm Implementation ---
+
+    /// Performs polygon clipping using the Sutherland-Hodgman algorithm.
+    /// Assumes `clipper_points` form a convex polygon with vertices in CCW order.
+    /// The subject polygon is clipped against each edge of the clipper polygon.
+    ///
+    /// # Arguments
+    /// * `subject_points` - Vertices of the polygon to be clipped.
+    /// * `clipper_points` - Vertices of the convex clipper polygon (CCW order).
+    ///
+    /// # Returns
+    /// A `MathResult<Vec<Vec2>>` representing the vertices of the clipped polygon.
+    /// The list might be empty if the subject is entirely outside the clipper.
     fn sutherland_hodgman_clip(
         &self,
         subject_points: &[Vec2],
-        clipper_points: &[Vec2], // Muss konvex und CCW sein
+        clipper_points: &[Vec2], // Must be convex and CCW
     ) -> MathResult<Vec<Vec2>> {
         let mut current_clipped_points = subject_points.to_vec();
 
         for i in 0..clipper_points.len() {
+            // If at any stage the polygon degenerates or vanishes, stop.
             if current_clipped_points.len() < 3 && !current_clipped_points.is_empty() {
-                // Weniger als 3 Punkte können kein Polygon mehr bilden
-                current_clipped_points.clear(); // Kein Ergebnis mehr möglich
+                current_clipped_points.clear();
                 break;
             }
             if current_clipped_points.is_empty() {
@@ -145,118 +196,144 @@ impl PolygonClipper {
             }
 
             let clip_edge_p1 = clipper_points[i];
-            let clip_edge_p2 = clipper_points[(i + 1) % clipper_points.len()]; // Nächster Punkt, mit Umlauf
+            let clip_edge_p2 = clipper_points[(i + 1) % clipper_points.len()]; // Next vertex, wraps around
 
             let input_for_this_edge = current_clipped_points.clone();
             current_clipped_points.clear();
 
             if input_for_this_edge.is_empty() {
+                // Should be caught by above checks
                 continue;
             }
 
-            let mut s = input_for_this_edge.last().unwrap().clone(); // Startpunkt des aktuellen Segments des Subjektpolygons
+            // `s` is the start point of the current subject edge being tested
+            let mut s = *input_for_this_edge.last().unwrap();
 
             for &e in &input_for_this_edge {
-                // Endpunkt des aktuellen Segments
+                // `e` is the end point of the current subject edge
                 let s_is_inside = self.is_point_inside_clip_edge(s, clip_edge_p1, clip_edge_p2);
                 let e_is_inside = self.is_point_inside_clip_edge(e, clip_edge_p1, clip_edge_p2);
 
                 if e_is_inside {
-                    // Fall 1 (Ende innen) oder Fall 4 (beide innen)
+                    // Case: Current vertex `e` is inside the clip edge
                     if !s_is_inside {
-                        // Fall 1: S außen, E innen -> Kante betritt Clipping-Bereich
+                        // Case: Edge (s,e) enters the clipping region
                         if let Some(intersection) =
                             self.line_segment_intersection(s, e, clip_edge_p1, clip_edge_p2)
                         {
                             current_clipped_points.push(intersection);
-                        } else {
-                            // Sollte nicht passieren, wenn s außen und e innen ist, und Kanten nicht kollinear sind
-                            // oder ein Fehler in is_point_inside_clip_edge oder line_segment_intersection
                         }
+                        // else: Error or edge case in intersection/inside check
                     }
-                    current_clipped_points.push(e); // E ist innen, also hinzufügen
+                    current_clipped_points.push(e); // Add `e` as it's inside
                 } else if s_is_inside {
-                    // Fall 2: S innen, E außen -> Kante verlässt Clipping-Bereich
+                    // Case: Edge (s,e) exits the clipping region
                     if let Some(intersection) =
                         self.line_segment_intersection(s, e, clip_edge_p1, clip_edge_p2)
                     {
                         current_clipped_points.push(intersection);
-                    } else {
-                        // Wie oben
                     }
+                    // else: Error or edge case
                 }
-                // Fall 3: S außen, E außen -> nichts hinzufügen
-                s = e; // Nächster Startpunkt ist aktueller Endpunkt
+                // Case: Both s and e are outside - do nothing
+                s = e; // Advance to the next subject edge
             }
         }
         Ok(current_clipped_points)
     }
 
-    /// Prüft, ob ein Punkt `p_test` auf der "inneren" Seite der Clipping-Kante (clip_p1 -> clip_p2) liegt.
-    /// Annahme: Clipper-Polygon ist CCW orientiert. "Innen" ist dann links von der Kante.
+    /// Checks if `p_test` is on the "inside" of the directed clipping edge (clip_p1 -> clip_p2).
+    /// Assumes the clipper polygon is CCW, so "inside" is to the left of the edge.
+    ///
+    /// # Arguments
+    /// * `p_test` - The point to test.
+    /// * `clip_p1` - Start point of the clipping edge.
+    /// * `clip_p2` - End point of the clipping edge.
+    ///
+    /// # Returns
+    /// `true` if `p_test` is inside or on the edge, `false` otherwise.
     #[inline]
     fn is_point_inside_clip_edge(&self, p_test: Vec2, clip_p1: Vec2, clip_p2: Vec2) -> bool {
-        // Kreuzprodukt: (clip_p2.x - clip_p1.x) * (p_test.y - clip_p1.y) - (clip_p2.y - clip_p1.y) * (p_test.x - clip_p1.x)
-        // Positiv -> p_test ist links von der Kante (oder auf der Kante, wenn CCW)
-        // Negativ -> p_test ist rechts von der Kante
-        // Null    -> p_test ist kollinear
+        // Using the 2D cross product (or perpendicular dot product) to determine orientation.
+        // (clip_p2 - clip_p1).perp_dot(p_test - clip_p1)
+        // = (clip_p2.x - clip_p1.x) * (p_test.y - clip_p1.y) - (clip_p2.y - clip_p1.y) * (p_test.x - clip_p1.x)
+        // Result > 0: p_test is to the left (inside for CCW clipper).
+        // Result = 0: p_test is collinear.
+        // Result < 0: p_test is to the right (outside).
         let cross_product = (clip_p2.x - clip_p1.x) * (p_test.y - clip_p1.y)
             - (clip_p2.y - clip_p1.y) * (p_test.x - clip_p1.x);
-        cross_product >= -self.tolerance // Inklusive Punkte auf der Kante (oder sehr nahe dran)
+        cross_product >= -self.tolerance // Points on the edge (or very close due to tolerance) are considered inside.
     }
 
-    /// Berechnet den Schnittpunkt zweier Liniensegmente (p1-p2) und (p3-p4).
-    /// Gibt `Some(intersection_point)` zurück, wenn sie sich schneiden, sonst `None`.
+    /// Computes the intersection point of two line segments (p1-p2) and (p3-p4).
+    ///
+    /// # Arguments
+    /// * `p1`, `p2` - Endpoints of the first line segment.
+    /// * `p3`, `p4` - Endpoints of the second line segment.
+    ///
+    /// # Returns
+    /// `Some(intersection_point)` if the segments intersect, `None` otherwise.
     fn line_segment_intersection(&self, p1: Vec2, p2: Vec2, p3: Vec2, p4: Vec2) -> Option<Vec2> {
-        let d1 = p2 - p1; // Vektor von p1 zu p2
-        let d2 = p4 - p3; // Vektor von p3 zu p4
+        let d1 = p2 - p1; // Vector for segment p1-p2
+        let d2 = p4 - p3; // Vector for segment p3-p4
 
-        let denominator = d1.x * d2.y - d1.y * d2.x; // Kreuzprodukt d1 x d2
+        // Denominator for parametric line intersection formula
+        let denominator = d1.x * d2.y - d1.y * d2.x; // d1.perp_dot(d2)
 
         if denominator.abs() < self.tolerance * constants::EPSILON {
-            // Linien sind parallel oder kollinear
-            // TODO: Kollineare Überlappung behandeln, falls erforderlich.
-            // Für einfaches Clipping wird dies oft als kein Schnittpunkt gewertet.
+            // Lines are parallel or collinear.
+            // For robust clipping, collinear overlapping segments might need special handling.
+            // Here, we treat them as non-intersecting for simplicity unless they are identical.
             return None;
         }
 
-        let t_num = (p3.x - p1.x) * d2.y - (p3.y - p1.y) * d2.x;
-        let u_num = (p3.x - p1.x) * d1.y - (p3.y - p1.y) * d1.x;
-        // Für Schnittpunkt:
-        // t_num = (p1-p3).cross_product(d2)
-        // u_num = (p1-p3).cross_product(d1)
-        // Beachte Vorzeichen: d1.cross(d2) = d1.x*d2.y - d1.y*d2.x
-        // (p1-p3).cross(d2) = (p1.x-p3.x)*d2.y - (p1.y-p3.y)*d2.x
-        // (p1-p3).cross(d1) = (p1.x-p3.x)*d1.y - (p1.y-p3.y)*d1.x
-        // t = ( (p1.x-p3.x)*d2.y - (p1.y-p3.y)*d2.x ) / denominator
-        // u = ( (p1.x-p3.x)*d1.y - (p1.y-p3.y)*d1.x ) / denominator <- hier ist das Vorzeichen in der Formel wichtig für u
-        // Standardformel für u ist oft: u = - (d1.x*(p1.y-p3.y) - d1.y*(p1.x-p3.x)) / denominator;
-
+        // Numerators for parameters t and u
+        // Intersection P = p1 + t * d1 = p3 + u * d2
+        let t_num = (p3.x - p1.x) * d2.y - (p3.y - p1.y) * d2.x; // (p3 - p1).perp_dot(d2)
+        let u_num = (p3.x - p1.x) * d1.y - (p3.y - p1.y) * d1.x; // (p3 - p1).perp_dot(d1)
+        // Note: u_num should be (p1 - p3).perp_dot(d1) for standard u parameter, or use -u_num.
+        // Let's use the common form: u = ((p1-p3) x d1) / (d2 x d1)
+        // which is u = ((p1.x-p3.x)*d1.y - (p1.y-p3.y)*d1.x) / (-denominator)
+        // The current u_num is (p3-p1).perp_dot(d1). With denom = d1.perp_dot(d2),
+        // u = u_num / denominator is parameter for line p3 + u*d2 if u_num was (p1-p3).perp_dot(d1).
+        // It's simpler to use established formulas or vector algebra carefully.
+        // Let's use the t parameter for p1 + t*d1.
         let t = t_num / denominator;
-        let u = u_num / denominator; // Wenn u_num wie oben, dann u = u_num / denominator
+        // For u, using the formula u = ((p1-p3) x d1) / (d2 x d1)
+        let u = u_num / (-denominator); // d2.perp_dot(d1) = -denominator
 
-        // Prüfe, ob der Schnittpunkt auf beiden Segmenten liegt (0 <= t <= 1 und 0 <= u <= 1)
-        // Mit Toleranz für Endpunkte
+        // Check if the intersection point lies on both segments (0 <= t <= 1 and 0 <= u <= 1).
+        // Include tolerance for endpoints.
         let t_on_segment = t >= -self.tolerance && t <= 1.0 + self.tolerance;
         let u_on_segment = u >= -self.tolerance && u <= 1.0 + self.tolerance;
 
         if t_on_segment && u_on_segment {
-            Some(p1 + d1 * t.clamp(0.0, 1.0)) // Clamp t, um innerhalb des Segments zu bleiben bei Ungenauigkeiten
+            // Clamp t to [0,1] to avoid slight over/undershoots due to tolerance when calculating intersection point.
+            Some(p1 + d1 * t.clamp(0.0, 1.0))
         } else {
-            None
+            None // Intersection point is outside one or both segments.
         }
     }
 }
 
-/// Spezifische Clipping-Operationen als Utility-Funktionen.
+/// Provides utility functions for common clipping operations.
 pub struct ClippingOperations;
 
 impl ClippingOperations {
-    /// Clippt eine Punkteliste (Polygon) gegen ein Rechteck.
+    /// Clips a list of points (representing a polygon) against an axis-aligned rectangle.
+    ///
+    /// # Arguments
+    /// * `subject_points` - Vertices of the polygon to be clipped.
+    /// * `clip_bounds` - The `Bounds2D` rectangle to clip against.
+    /// * `algorithm` - The `ClippingAlgorithm` to use.
+    /// * `tolerance` - Optional floating point tolerance for the operation. Uses default if `None`.
+    ///
+    /// # Returns
+    /// A `MathResult<Vec<Vec<Vec2>>>` containing the clipped polygon(s).
     pub fn clip_points_to_rectangle(
         subject_points: &[Vec2],
         clip_bounds: &Bounds2D,
-        algorithm: ClippingAlgorithm, // Erlaube Algorithmuswahl
+        algorithm: ClippingAlgorithm,
         tolerance: Option<f32>,
     ) -> MathResult<Vec<Vec<Vec2>>> {
         let mut clipper = PolygonClipper::new(algorithm);
@@ -266,6 +343,6 @@ impl ClippingOperations {
         clipper.clip_polygon_against_rectangle(subject_points, clip_bounds)
     }
 
-    // clip_to_circle und andere spezifische Formen würden hier eigene Logik benötigen
-    // oder eine Approximation des Clippers durch ein Polygon.
+    // Other specific clipping utility functions (e.g., clip_to_circle) could be added here.
+    // These would require their own logic or approximation of the clipper shape by a polygon.
 }

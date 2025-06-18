@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024" height="1024" viewBox="-50 -50 100 100" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .background { fill: #f0f0f0; fill-opacity: 1.0; }
+    .display-bounds { fill: none; stroke: #cccccc; stroke-width: 0.2; stroke-dasharray: 5,5; }
+    .clip-bounds { fill: none; stroke: #888888; stroke-width: 0.2; stroke-dasharray: 2,2; }
+    .initial-point { fill: #ffaaaa; stroke: #cc0000; stroke-width: 0.2; }
+    .relaxed-point { fill: #aaccff; stroke: #0000cc; stroke-width: 0.2; }
+    .raw-voronoi-cell { fill: rgba(255, 220, 150, 0.3); stroke: #ffaa00; stroke-width: 0.2; }
+    .clipped-voronoi-cell { fill: rgba(150, 255, 150, 0.5); stroke: #00aa00; stroke-width: 0.5; }
+    .merged-polygon { fill: rgba(200, 150, 255, 0.7); stroke: #5500aa; stroke-width: 0.5; }
+    .merged-polygon-coord { 
+        font-family: monospace; 
+        font-size: 0.440px; 
+        fill: #000000; 
+        stroke: white; 
+        stroke-width: 0.200; 
+        paint-order: stroke fill;
+        text-anchor: middle;
+        dominant-baseline: middle;
+    }
+  </style>
+  <rect x="-50" y="-50" width="100" height="100" class="background" />
+  <rect x="-50" y="-50" width="100" height="100" class="display-bounds" />
+  <polygon points="-34.695,4.133 -29.408,4.536 -25.022,10.297 -21.538,21.415 -21.373,28.248 -24.527,30.795 -30.700,30.883 -39.894,28.515 -45.494,25.795 -47.500,22.726 -45.712,16.876 -40.130,8.246" class="merged-polygon" />
+  <text x="-34.695" y="4.133" class="merged-polygon-coord">(-34.7,4.1)</text>
+  <text x="-29.408" y="4.536" class="merged-polygon-coord">(-29.4,4.5)</text>
+  <text x="-25.022" y="10.297" class="merged-polygon-coord">(-25.0,10.3)</text>
+  <text x="-21.538" y="21.415" class="merged-polygon-coord">(-21.5,21.4)</text>
+  <text x="-21.373" y="28.248" class="merged-polygon-coord">(-21.4,28.2)</text>
+  <text x="-24.527" y="30.795" class="merged-polygon-coord">(-24.5,30.8)</text>
+  <text x="-30.700" y="30.883" class="merged-polygon-coord">(-30.7,30.9)</text>
+  <text x="-39.894" y="28.515" class="merged-polygon-coord">(-39.9,28.5)</text>
+  <text x="-45.494" y="25.795" class="merged-polygon-coord">(-45.5,25.8)</text>
+  <text x="-47.500" y="22.726" class="merged-polygon-coord">(-47.5,22.7)</text>
+  <text x="-45.712" y="16.876" class="merged-polygon-coord">(-45.7,16.9)</text>
+  <text x="-40.130" y="8.246" class="merged-polygon-coord">(-40.1,8.2)</text>
+  <polygon points="-42.294,-13.716 -34.670,-22.153 -27.985,-24.736 -22.238,-21.463 -18.965,-15.264 -18.164,-6.139 -20.014,0.001 -24.514,3.159 -29.408,4.536 -34.695,4.133 -39.531,0.574 -43.914,-6.140" class="merged-polygon" />
+  <text x="-42.294" y="-13.716" class="merged-polygon-coord">(-42.3,-13.7)</text>
+  <text x="-34.670" y="-22.153" class="merged-polygon-coord">(-34.7,-22.2)</text>
+  <text x="-27.985" y="-24.736" class="merged-polygon-coord">(-28.0,-24.7)</text>
+  <text x="-22.238" y="-21.463" class="merged-polygon-coord">(-22.2,-21.5)</text>
+  <text x="-18.965" y="-15.264" class="merged-polygon-coord">(-19.0,-15.3)</text>
+  <text x="-18.164" y="-6.139" class="merged-polygon-coord">(-18.2,-6.1)</text>
+  <text x="-20.014" y="0.001" class="merged-polygon-coord">(-20.0,0.0)</text>
+  <text x="-24.514" y="3.159" class="merged-polygon-coord">(-24.5,3.2)</text>
+  <text x="-29.408" y="4.536" class="merged-polygon-coord">(-29.4,4.5)</text>
+  <text x="-34.695" y="4.133" class="merged-polygon-coord">(-34.7,4.1)</text>
+  <text x="-39.531" y="0.574" class="merged-polygon-coord">(-39.5,0.6)</text>
+  <text x="-43.914" y="-6.140" class="merged-polygon-coord">(-43.9,-6.1)</text>
+  <polygon points="-24.527,30.795 -21.373,28.248 -16.409,26.896 -9.633,26.740 -5.301,27.130 -3.413,28.068 -1.400,30.591 0.738,34.701 -5.171,35.584 -19.126,33.240" class="merged-polygon" />
+  <text x="-24.527" y="30.795" class="merged-polygon-coord">(-24.5,30.8)</text>
+  <text x="-21.373" y="28.248" class="merged-polygon-coord">(-21.4,28.2)</text>
+  <text x="-16.409" y="26.896" class="merged-polygon-coord">(-16.4,26.9)</text>
+  <text x="-9.633" y="26.740" class="merged-polygon-coord">(-9.6,26.7)</text>
+  <text x="-5.301" y="27.130" class="merged-polygon-coord">(-5.3,27.1)</text>
+  <text x="-3.413" y="28.068" class="merged-polygon-coord">(-3.4,28.1)</text>
+  <text x="-1.400" y="30.591" class="merged-polygon-coord">(-1.4,30.6)</text>
+  <text x="0.738" y="34.701" class="merged-polygon-coord">(0.7,34.7)</text>
+  <text x="-5.171" y="35.584" class="merged-polygon-coord">(-5.2,35.6)</text>
+  <text x="-19.126" y="33.240" class="merged-polygon-coord">(-19.1,33.2)</text>
+  <polygon points="14.342,16.578 21.955,17.495 26.498,20.123 27.972,24.460 27.235,29.313 24.287,34.682 17.561,37.214 7.058,36.909 0.738,34.701 -1.400,30.591 0.782,25.432 7.284,19.223" class="merged-polygon" />
+  <text x="14.342" y="16.578" class="merged-polygon-coord">(14.3,16.6)</text>
+  <text x="21.955" y="17.495" class="merged-polygon-coord">(22.0,17.5)</text>
+  <text x="26.498" y="20.123" class="merged-polygon-coord">(26.5,20.1)</text>
+  <text x="27.972" y="24.460" class="merged-polygon-coord">(28.0,24.5)</text>
+  <text x="27.235" y="29.313" class="merged-polygon-coord">(27.2,29.3)</text>
+  <text x="24.287" y="34.682" class="merged-polygon-coord">(24.3,34.7)</text>
+  <text x="17.561" y="37.214" class="merged-polygon-coord">(17.6,37.2)</text>
+  <text x="7.058" y="36.909" class="merged-polygon-coord">(7.1,36.9)</text>
+  <text x="0.738" y="34.701" class="merged-polygon-coord">(0.7,34.7)</text>
+  <text x="-1.400" y="30.591" class="merged-polygon-coord">(-1.4,30.6)</text>
+  <text x="0.782" y="25.432" class="merged-polygon-coord">(0.8,25.4)</text>
+  <text x="7.284" y="19.223" class="merged-polygon-coord">(7.3,19.2)</text>
+  <polygon points="9.472,-1.083 17.410,-1.886 22.956,1.700 26.109,9.674 27.205,14.734 26.243,16.881 21.955,17.495 14.342,16.578 9.277,11.919 6.761,3.518" class="merged-polygon" />
+  <text x="9.472" y="-1.083" class="merged-polygon-coord">(9.5,-1.1)</text>
+  <text x="17.410" y="-1.886" class="merged-polygon-coord">(17.4,-1.9)</text>
+  <text x="22.956" y="1.700" class="merged-polygon-coord">(23.0,1.7)</text>
+  <text x="26.109" y="9.674" class="merged-polygon-coord">(26.1,9.7)</text>
+  <text x="27.205" y="14.734" class="merged-polygon-coord">(27.2,14.7)</text>
+  <text x="26.243" y="16.881" class="merged-polygon-coord">(26.2,16.9)</text>
+  <text x="21.955" y="17.495" class="merged-polygon-coord">(22.0,17.5)</text>
+  <text x="14.342" y="16.578" class="merged-polygon-coord">(14.3,16.6)</text>
+  <text x="9.277" y="11.919" class="merged-polygon-coord">(9.3,11.9)</text>
+  <text x="6.761" y="3.518" class="merged-polygon-coord">(6.8,3.5)</text>
+  <polygon points="8.643,-17.762 17.608,-20.273 23.223,-18.546 25.486,-12.582 25.308,-7.771 22.689,-4.115 17.410,-1.886 9.472,-1.083 5.006,-0.998 4.012,-1.630 3.677,-5.586 3.999,-12.867" class="merged-polygon" />
+  <text x="8.643" y="-17.762" class="merged-polygon-coord">(8.6,-17.8)</text>
+  <text x="17.608" y="-20.273" class="merged-polygon-coord">(17.6,-20.3)</text>
+  <text x="23.223" y="-18.546" class="merged-polygon-coord">(23.2,-18.5)</text>
+  <text x="25.486" y="-12.582" class="merged-polygon-coord">(25.5,-12.6)</text>
+  <text x="25.308" y="-7.771" class="merged-polygon-coord">(25.3,-7.8)</text>
+  <text x="22.689" y="-4.115" class="merged-polygon-coord">(22.7,-4.1)</text>
+  <text x="17.410" y="-1.886" class="merged-polygon-coord">(17.4,-1.9)</text>
+  <text x="9.472" y="-1.083" class="merged-polygon-coord">(9.5,-1.1)</text>
+  <text x="5.006" y="-0.998" class="merged-polygon-coord">(5.0,-1.0)</text>
+  <text x="4.012" y="-1.630" class="merged-polygon-coord">(4.0,-1.6)</text>
+  <text x="3.677" y="-5.586" class="merged-polygon-coord">(3.7,-5.6)</text>
+  <text x="3.999" y="-12.867" class="merged-polygon-coord">(4.0,-12.9)</text>
+  <polygon points="-24.514,3.159 -20.014,0.001 -15.220,-0.781 -10.132,0.813 -7.252,7.872 -6.581,20.398 -9.633,26.740 -16.409,26.896 -21.538,21.415 -25.022,10.297" class="merged-polygon" />
+  <text x="-24.514" y="3.159" class="merged-polygon-coord">(-24.5,3.2)</text>
+  <text x="-20.014" y="0.001" class="merged-polygon-coord">(-20.0,0.0)</text>
+  <text x="-15.220" y="-0.781" class="merged-polygon-coord">(-15.2,-0.8)</text>
+  <text x="-10.132" y="0.813" class="merged-polygon-coord">(-10.1,0.8)</text>
+  <text x="-7.252" y="7.872" class="merged-polygon-coord">(-7.3,7.9)</text>
+  <text x="-6.581" y="20.398" class="merged-polygon-coord">(-6.6,20.4)</text>
+  <text x="-9.633" y="26.740" class="merged-polygon-coord">(-9.6,26.7)</text>
+  <text x="-16.409" y="26.896" class="merged-polygon-coord">(-16.4,26.9)</text>
+  <text x="-21.538" y="21.415" class="merged-polygon-coord">(-21.5,21.4)</text>
+  <text x="-25.022" y="10.297" class="merged-polygon-coord">(-25.0,10.3)</text>
+  <polygon points="-4.812,0.720 0.740,-1.057 4.012,-1.630 5.006,-0.998 6.761,3.518 9.277,11.919 7.284,19.223 0.782,25.432 -3.413,28.068 -5.301,27.130 -6.581,20.398 -7.252,7.872" class="merged-polygon" />
+  <text x="-4.812" y="0.720" class="merged-polygon-coord">(-4.8,0.7)</text>
+  <text x="0.740" y="-1.057" class="merged-polygon-coord">(0.7,-1.1)</text>
+  <text x="4.012" y="-1.630" class="merged-polygon-coord">(4.0,-1.6)</text>
+  <text x="5.006" y="-0.998" class="merged-polygon-coord">(5.0,-1.0)</text>
+  <text x="6.761" y="3.518" class="merged-polygon-coord">(6.8,3.5)</text>
+  <text x="9.277" y="11.919" class="merged-polygon-coord">(9.3,11.9)</text>
+  <text x="7.284" y="19.223" class="merged-polygon-coord">(7.3,19.2)</text>
+  <text x="0.782" y="25.432" class="merged-polygon-coord">(0.8,25.4)</text>
+  <text x="-3.413" y="28.068" class="merged-polygon-coord">(-3.4,28.1)</text>
+  <text x="-5.301" y="27.130" class="merged-polygon-coord">(-5.3,27.1)</text>
+  <text x="-6.581" y="20.398" class="merged-polygon-coord">(-6.6,20.4)</text>
+  <text x="-7.252" y="7.872" class="merged-polygon-coord">(-7.3,7.9)</text>
+  <polygon points="6.117,-37.664 19.115,-33.345 24.734,-28.771 22.972,-23.943 17.608,-20.273 8.643,-17.762 2.050,-18.816 -2.170,-23.433 -3.306,-29.262 -1.357,-36.303" class="merged-polygon" />
+  <text x="6.117" y="-37.664" class="merged-polygon-coord">(6.1,-37.7)</text>
+  <text x="19.115" y="-33.345" class="merged-polygon-coord">(19.1,-33.3)</text>
+  <text x="24.734" y="-28.771" class="merged-polygon-coord">(24.7,-28.8)</text>
+  <text x="22.972" y="-23.943" class="merged-polygon-coord">(23.0,-23.9)</text>
+  <text x="17.608" y="-20.273" class="merged-polygon-coord">(17.6,-20.3)</text>
+  <text x="8.643" y="-17.762" class="merged-polygon-coord">(8.6,-17.8)</text>
+  <text x="2.050" y="-18.816" class="merged-polygon-coord">(2.1,-18.8)</text>
+  <text x="-2.170" y="-23.433" class="merged-polygon-coord">(-2.2,-23.4)</text>
+  <text x="-3.306" y="-29.262" class="merged-polygon-coord">(-3.3,-29.3)</text>
+  <text x="-1.357" y="-36.303" class="merged-polygon-coord">(-1.4,-36.3)</text>
+  <polygon points="24.287,34.682 27.235,29.313 32.922,27.277 41.348,28.573 46.208,31.357 47.500,35.628 41.813,37.664 29.146,37.466" class="merged-polygon" />
+  <text x="24.287" y="34.682" class="merged-polygon-coord">(24.3,34.7)</text>
+  <text x="27.235" y="29.313" class="merged-polygon-coord">(27.2,29.3)</text>
+  <text x="32.922" y="27.277" class="merged-polygon-coord">(32.9,27.3)</text>
+  <text x="41.348" y="28.573" class="merged-polygon-coord">(41.3,28.6)</text>
+  <text x="46.208" y="31.357" class="merged-polygon-coord">(46.2,31.4)</text>
+  <text x="47.500" y="35.628" class="merged-polygon-coord">(47.5,35.6)</text>
+  <text x="41.813" y="37.664" class="merged-polygon-coord">(41.8,37.7)</text>
+  <text x="29.146" y="37.466" class="merged-polygon-coord">(29.1,37.5)</text>
+</svg>

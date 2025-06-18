@@ -5,6 +5,7 @@ use crate::math::{
     types::{Bounds2D, SpadePoint},
     utils::constants,
 };
+use bevy::log::info;
 use bevy::math::Vec2;
 use spade::{DelaunayTriangulation, Point2, Triangulation};
 use std::collections::HashSet;
@@ -12,6 +13,8 @@ use std::collections::HashSet;
 /// Repräsentiert eine einzelne Zelle in einem Voronoi-Diagramm.
 #[derive(Debug, Clone)]
 pub struct VoronoiCell {
+    /// Eindeutige ID der Zelle
+    pub id: usize,
     /// Der Generatorpunkt (Site), der diese Zelle definiert.
     pub generator: Vec2,
     /// Die Eckpunkte des Polygons, das die Zelle bildet, in CCW-Reihenfolge.
@@ -19,6 +22,8 @@ pub struct VoronoiCell {
     /// Gibt an, ob diese Zelle an der äußeren Grenze des Diagramms liegt
     /// (d.h., einige ihrer Kanten sind unendlich oder durch die Boundary beschnitten).
     pub is_boundary_cell: bool,
+    /// IDs der benachbarten Zellen
+    pub neighbor_ids: Vec<usize>,
     // Optional: Index des Generatorpunktes in der ursprünglichen Eingabeliste
     // pub generator_index: Option<usize>,
 }
@@ -85,7 +90,7 @@ impl VoronoiExtractor {
     /// `clip_boundary`: Optionale Grenzen, gegen die die Voronoi-Zellen geclippt werden.
     ///                  Wenn `None`, können Zellen unbeschränkt sein (für Randzellen).
     pub fn extract_cells(
-        triangulation: &DelaunayTriangulation<SpadePoint>, // SpadePoint ist Point2<f32>
+        triangulation: &DelaunayTriangulation<SpadePoint>,
         clip_boundary: Option<&Bounds2D>,
     ) -> MathResult<Vec<VoronoiCell>> {
         let mut voronoi_cells = Vec::with_capacity(triangulation.num_vertices());
@@ -93,44 +98,61 @@ impl VoronoiExtractor {
         for vertex_handle in triangulation.vertices() {
             let generator_spade = vertex_handle.position();
             let generator_bevy = Vec2::new(generator_spade.x, generator_spade.y);
-
             let mut cell_circumcenters_spade: Vec<SpadePoint> = Vec::new();
             let mut is_boundary_cell_flag = false;
 
-            // Sammle Umkreismittelpunkte der angrenzenden Delaunay-Dreiecke
             for connected_edge in vertex_handle.out_edges() {
                 let face_handle = connected_edge.face();
                 if face_handle.is_outer() {
                     is_boundary_cell_flag = true;
+                    // Optional: Breche hier schon ab, wenn du weißt, dass du boundary cells nicht willst
+                    // break;
                 } else {
                     if let Some(inner_face) = face_handle.as_inner() {
-                        let cc = inner_face.circumcenter(); // oder: circumcenter(&inner_face.positions())
-                        cell_circumcenters_spade.push(cc);
+                        cell_circumcenters_spade.push(inner_face.circumcenter());
                     }
                 }
             }
 
+            // <<< NEUER FILTER >>>
+            if is_boundary_cell_flag {
+                // Angenommen, skip_boundary_cells ist eine neue Config-Option
+                info!(
+                    "VoronoiExtractor: SKIPPING boundary cell for generator {:?} entirely due to config.",
+                    generator_bevy
+                );
+                continue;
+            }
+            // <<< ENDE NEUER FILTER >>>
+
+            // Bestehender Filter, wenn cell_circumcenters_spade.len() < 2 ist UND es KEINE boundary cell ist.
+            // Dieser Filter sollte NACH dem optionalen `skip_boundary_cells_entirely` kommen.
             if cell_circumcenters_spade.len() < 2 && !is_boundary_cell_flag {
+                // Spezieller Fall: Nur ein Punkt in der Triangulation
                 if cell_circumcenters_spade.is_empty() && triangulation.num_vertices() == 1 {
                     if let Some(boundary) = clip_boundary {
                         voronoi_cells.push(VoronoiCell {
+                            id: voronoi_cells.len(),
                             generator: generator_bevy,
                             vertices: boundary.corners().to_vec(),
                             is_boundary_cell: true,
+                            neighbor_ids: Vec::new(),
                         });
-                        continue;
-                    }
+                    } // else: keine boundary, einzelner Punkt -> keine sinnvolle Zelle
+                } else {
+                    info!(
+                        "VoronoiExtractor: Skipping non-boundary cell for {:?} with only {} circumcenters.",
+                        generator_bevy,
+                        cell_circumcenters_spade.len()
+                    );
                 }
-                // Für Zellen, die nur aus einem oder keinem Umkreismittelpunkt bestehen und nicht
-                // explizit als Randzellen markiert sind (z.B. kollineare Punkte),
-                // können wir hier entscheiden, sie zu überspringen oder anders zu behandeln.
-                // Aktuell werden sie übersprungen, wenn sie nicht die spezielle Einzelpunkt-Logik erfüllen.
                 continue;
             }
 
-            // Sortiere die Umkreismittelpunkte im Uhrzeigersinn (oder CCW) um den Generator.
             if cell_circumcenters_spade.len() >= 2 {
+                // Sortierung nur, wenn mind. 2 Punkte da sind
                 cell_circumcenters_spade.sort_unstable_by(|a, b| {
+                    // ... Sortierlogik ...
                     let angle_a = (a.y - generator_spade.y).atan2(a.x - generator_spade.x);
                     let angle_b = (b.y - generator_spade.y).atan2(b.x - generator_spade.x);
                     angle_a
@@ -144,6 +166,19 @@ impl VoronoiExtractor {
                 .map(|sp| Vec2::new(sp.x, sp.y))
                 .collect();
 
+            // Der hinzugefügte Log und Check von dir:
+            if cell_vertices_bevy.len() < 3 {
+                // Deine Logik für 'boundary: true' und cell_vertices_bevy.len() == 2 greift hier.
+                info!(
+                    // Geändert zu INFO, da es jetzt eine bewusste Design-Entscheidung sein kann
+                    "VoronoiExtractor: Raw Voronoi cell for {:?} (boundary: {}) has only {} vertices BEFORE clipping. Skipping.",
+                    generator_bevy,
+                    is_boundary_cell_flag,
+                    cell_vertices_bevy.len()
+                );
+                continue;
+            }
+
             if let Some(boundary) = clip_boundary {
                 if !cell_vertices_bevy.is_empty() {
                     let clipper_points = boundary.corners();
@@ -153,12 +188,12 @@ impl VoronoiExtractor {
                         crate::math::algorithms::clipping::PolygonClipper::new(clipper_algo);
 
                     let clipped_results = polygon_clipper
-                        .clip_polygon_points(&cell_vertices_bevy, &clipper_points)?;
+                        .clip_polygon_points(&cell_vertices_bevy, &clipper_points)?; // << DIESER Aufruf gibt MathError::InsufficientPoints zurück
 
                     if let Some(clipped_cell) = clipped_results.into_iter().next() {
                         cell_vertices_bevy = clipped_cell;
                     } else {
-                        cell_vertices_bevy.clear();
+                        cell_vertices_bevy.clear(); // Polygon war komplett außerhalb oder wurde zu nichts geclippt
                     }
                 } else if is_boundary_cell_flag {
                     // Fall: Randzelle ohne initiale Umkreismittelpunkte (z.B. ein Punkt auf der konvexen Hülle).
@@ -174,6 +209,7 @@ impl VoronoiExtractor {
 
             if cell_vertices_bevy.len() >= 3 {
                 voronoi_cells.push(VoronoiCell {
+                    id: voronoi_cells.len(),
                     generator: generator_bevy,
                     vertices: cell_vertices_bevy,
                     // Eine Zelle ist eine Randzelle, wenn sie ursprünglich als solche erkannt wurde
@@ -182,6 +218,7 @@ impl VoronoiExtractor {
                     // das Clipping an sich macht sie nicht unbedingt zur Randzelle im Sinne von "unendlich".
                     // Aber wenn sie geclippt wurde, grenzt sie an die Boundary.
                     is_boundary_cell: is_boundary_cell_flag || clip_boundary.is_some(),
+                    neighbor_ids: Vec::new(),
                 });
             } else if is_boundary_cell_flag
                 && clip_boundary.is_some()
@@ -191,7 +228,50 @@ impl VoronoiExtractor {
                 // könnte hier verfeinert werden. Manchmal ist es korrekt, dass die Zelle leer ist.
             }
         }
+        
+        // Berechne Nachbarschaftsbeziehungen
+        Self::calculate_neighbor_relationships(&mut voronoi_cells, triangulation);
+        
         Ok(voronoi_cells)
+    }
+
+    /// Berechnet die Nachbarschaftsbeziehungen zwischen Voronoi-Zellen basierend auf der Delaunay-Triangulation
+    fn calculate_neighbor_relationships(
+        cells: &mut [VoronoiCell],
+        triangulation: &DelaunayTriangulation<SpadePoint>,
+    ) {
+        // Erstelle eine Zuordnung von Generatorpunkten zu Zell-IDs
+        let mut generator_to_id = std::collections::HashMap::new();
+        for cell in cells.iter() {
+            let generator_key = (
+                (cell.generator.x * 1000.0) as i32,
+                (cell.generator.y * 1000.0) as i32,
+            );
+            generator_to_id.insert(generator_key, cell.id);
+        }
+
+        // Für jede Kante in der Delaunay-Triangulation finde die entsprechenden Voronoi-Zellen
+        for edge in triangulation.undirected_edges() {
+            let vertices = edge.vertices();
+            if vertices.len() == 2 {
+                let gen1 = vertices[0].position();
+                let gen2 = vertices[1].position();
+                
+                let key1 = ((gen1.x * 1000.0) as i32, (gen1.y * 1000.0) as i32);
+                let key2 = ((gen2.x * 1000.0) as i32, (gen2.y * 1000.0) as i32);
+                
+                if let (Some(&id1), Some(&id2)) = (generator_to_id.get(&key1), generator_to_id.get(&key2)) {
+                    // Füge die Nachbarschaftsbeziehung hinzu
+                    for cell in cells.iter_mut() {
+                        if cell.id == id1 && !cell.neighbor_ids.contains(&id2) {
+                            cell.neighbor_ids.push(id2);
+                        } else if cell.id == id2 && !cell.neighbor_ids.contains(&id1) {
+                            cell.neighbor_ids.push(id1);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /// Extrahiert alle Voronoi-Kanten aus der Delaunay-Triangulation.

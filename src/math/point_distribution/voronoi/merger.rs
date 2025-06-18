@@ -8,22 +8,39 @@ use crate::math::{
     utils::constants,
 };
 use bevy::math::Vec2;
+use std::collections::HashSet;
 
 /// Definiert verschiedene Strategien zum Auswählen und Zusammenfügen von Voronoi-Zellen.
 #[derive(Debug, Clone, Copy)]
 pub enum MergeStrategy {
     /// Fügt Zellen basierend auf Flächenkriterien zusammen.
-    AreaBased { min_area: f32, max_area: f32 },
+    AreaBased {
+        min_area: f32,
+        max_area: f32,
+    },
     /// Fügt Zellen basierend auf der Anzahl ihrer Nachbarn zusammen (vereinfacht durch Vertex-Anzahl).
-    NeighborhoodBased { max_vertices_for_cell: usize },
+    NeighborhoodBased {
+        max_vertices_for_cell: usize,
+    },
     /// Wählt eine bestimmte Anzahl der größten Zellen aus.
-    LargestCells { count: usize },
+    LargestCells {
+        count: usize,
+    },
     /// Wählt Zellen basierend auf Ähnlichkeit ihrer Eigenschaften (z.B. Fläche, Umfang) aus.
-    PropertyBased { similarity_threshold: f32 }, // [0,1]
+    PropertyBased {
+        similarity_threshold: f32,
+    }, // [0,1]
     /// Wählt eine zufällige Anzahl von Zellen oder spezifische zufällige Zellen aus.
-    Random { target_count: usize },
+    Random {
+        target_count: usize,
+    },
     /// Versucht, alle ausgewählten Zellen zu einer einzigen Kontur zu verschmelzen.
     UnionAllSelected, // Neue Strategie
+    /// Wählt zufällig eine Zelle mit mindestens 6 Vertices und erweitert die Auswahl auf verbundene Nachbarzellen
+    RandomConnectedCells {
+        min_vertices: usize,
+        max_cells: usize,
+    },
 }
 
 impl Default for MergeStrategy {
@@ -144,6 +161,9 @@ impl PolygonMerger {
                 .iter()
                 .filter(|cell| cell.vertices.len() <= max_vertices_for_cell)
                 .collect()),
+            MergeStrategy::RandomConnectedCells { min_vertices, max_cells } => {
+                Self::select_random_connected_cells(all_cells, seed_resource, min_vertices, max_cells)
+            }
             MergeStrategy::LargestCells { count } => {
                 let mut sorted_cells: Vec<&VoronoiCell> = all_cells.iter().collect();
                 sorted_cells.sort_unstable_by(|a, b| {
@@ -208,6 +228,68 @@ impl PolygonMerger {
                 Ok(all_cells.iter().collect())
             }
         }
+    }
+
+    /// Implementiert die RandomConnectedCells Strategie:
+    /// 1. Wählt zufällig eine Zelle mit mindestens min_vertices Vertices
+    /// 2. Erweitert die Auswahl schrittweise auf benachbarte Zellen bis max_cells erreicht ist
+    fn select_random_connected_cells<'a>(
+        all_cells: &'a [VoronoiCell],
+        seed_resource: &mut SeedResource,
+        min_vertices: usize,
+        max_cells: usize,
+    ) -> MathResult<Vec<&'a VoronoiCell>> {
+        if all_cells.is_empty() || max_cells == 0 {
+            return Ok(Vec::new());
+        }
+
+        // Finde alle Zellen mit mindestens min_vertices Vertices
+        let candidate_cells: Vec<&VoronoiCell> = all_cells
+            .iter()
+            .filter(|cell| cell.vertices.len() >= min_vertices)
+            .collect();
+
+        if candidate_cells.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        // Wähle zufällig eine Startzelle
+        let start_index = seed_resource.next_i32_in_range(0, candidate_cells.len() as i32, None) as usize;
+        let start_cell = candidate_cells[start_index];
+
+        let mut selected_cells = Vec::new();
+        let mut visited = HashSet::new();
+        let mut expansion_candidates = Vec::new();
+        
+        // Füge die Startzelle hinzu
+        selected_cells.push(start_cell);
+        visited.insert(start_cell.id);
+        expansion_candidates.extend(start_cell.neighbor_ids.iter());
+
+        // Erweitere die Auswahl auf benachbarte Zellen
+        while selected_cells.len() < max_cells && !expansion_candidates.is_empty() {
+            // Entferne bereits besuchte IDs aus den Kandidaten
+            expansion_candidates.retain(|&id| !visited.contains(&id));
+            
+            if expansion_candidates.is_empty() {
+                break;
+            }
+
+            // Wähle zufällig eine der verfügbaren Nachbarzellen
+            let random_index = seed_resource.next_i32_in_range(0, expansion_candidates.len() as i32, None) as usize;
+            let selected_neighbor_id = expansion_candidates.swap_remove(random_index);
+
+            // Finde die entsprechende Zelle
+            if let Some(neighbor_cell) = all_cells.iter().find(|c| c.id == selected_neighbor_id) {
+                selected_cells.push(neighbor_cell);
+                visited.insert(neighbor_cell.id);
+                
+                // Füge die Nachbarn dieser Zelle als neue Kandidaten hinzu
+                expansion_candidates.extend(neighbor_cell.neighbor_ids.iter());
+            }
+        }
+
+        Ok(selected_cells)
     }
 }
 

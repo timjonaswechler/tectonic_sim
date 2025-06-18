@@ -6,8 +6,9 @@ pub mod error;
 pub mod geometry;
 pub mod point_distribution; // Neu strukturiert
 pub mod probability;
+pub mod scalar_field;
 pub mod types;
-pub mod utils; // Bleibt vorerst unberührt
+pub mod utils;
 
 pub use bevy::math::{IVec2, IVec3, Mat2, Mat3, Mat4, Quat, UVec2, UVec3, Vec2, Vec3};
 pub use error::{MathError, MathResult};
@@ -21,10 +22,10 @@ pub mod prelude {
     pub use super::error::{MathError, MathResult};
 
     // Utilities
+    pub use super::scalar_field::ScalarField2D;
     pub use super::utils::{
         angles, comparison, constants, easing, numerical, random, simple_geometry,
     };
-
     // Kern-Typen und Vektor-Erweiterungen
     pub use super::types::{
         Bool2, Bool3, Bounds2D, Bounds3D, SpadePoint, Vec2Builder, Vector2DExt, Vector3DExt,
@@ -33,28 +34,26 @@ pub mod prelude {
     pub use bevy::math::{IVec2, IVec3, Mat2, Mat3, Mat4, Quat, UVec2, UVec3, Vec2, Vec3};
 
     // Geometrie-Modul Exporte
-    pub use super::geometry::{
+    pub use super::algorithms::{
         // Metalballs
-        metalballs::{
+        metaballs::{
             CombinationMode,
             CompositeInfluence,
-            Contour,
             FieldInfluence,
-            GridConfig,
             InfluenceUtils,
             LineInfluence,
-            MarchingSquares,
-            MarchingSquaresIterator,
             MetaballFalloff,
             MetaballField,
             MetaballSource,
             Metaballs,
             MetaballsBuilder,
-            PointInfluence,
             PolygonFalloff as MetalballPolygonFalloff, // Alias um Kollision zu vermeiden
             PolygonInfluence,
             PolygonInfluenceBuilder,
         },
+    };
+
+    pub use super::geometry::{
         // Polygon
         polygon::{
             AffineTransform,

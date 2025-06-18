@@ -1,7 +1,7 @@
 // src/math/geometry/mod.rs
 
 // Deklaration der Haupt-Geometriemodule
-pub mod metalballs;
+
 pub mod polygon;
 pub mod sphere; // Jetzt deklariert
 
@@ -56,15 +56,4 @@ pub use self::sphere::{
     CoordinateConverter, GeographicCoordinates, SamplingPatterns, SphereProjectionType,
     SphereProjectionUtils, SphereProjector, SphereRotation, SphereSampler, SphereSamplingMethod,
     SphereUVMapper, SphericalCoordinates,
-};
-
-// Metalballs-Exporte
-pub use self::metalballs::{
-    GridConfig, MetaballField, Metaballs, MetaballsBuilder,
-    influence::{
-        CombinationMode, CompositeInfluence, FieldInfluence, InfluenceUtils, LineInfluence,
-        MetaballFalloff, MetaballSource, PointInfluence, PolygonFalloff, PolygonInfluence,
-        PolygonInfluenceBuilder,
-    },
-    marching_squares::{Contour, MarchingSquares, MarchingSquaresIterator},
 };
